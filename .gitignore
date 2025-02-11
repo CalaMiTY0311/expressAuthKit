@@ -1,0 +1,22 @@
+# Client
+client/
+
+# Server
+server/node_modules
+server/.env
+server/package-lock.json
+server/rootca.crt
+server/rootca.csr
+server/rootca.key
+
+# Redis
+redisData/
+
+# Portainer
+portainer/
+
+# db
+db/
+
+# docker
+Dockerfile.auth_express

@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # express-server:
+  #   image: sessionpractice:latest
+  #   container_name: express-server
+  #   ports:
+  #     - "3010:3010"
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: always
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./portainer:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+      mode: replicated 
+      replicas: 1 
+      placement:
+        constraints:
+          - node.role == manager # Portainer는 Docker Swarm의 Manager노드에서 실행
+
+volumes:
+  portainer:

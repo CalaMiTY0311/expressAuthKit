@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:latest
+    container_name: redis-container
+    deploy:
+      replicas: 1
+    tty: true 
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redisData:/data
+    
+  mongodb:
+    image: mongo:4.4.6
+    container_name: mongodbDev
+    restart: always
+    ports:
+      - "27017:27017"  # MongoDB 기본 포트
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=mongo
+      - MONGO_INITDB_ROOT_PASSWORD=qwer1234
+    volumes:
+      - ./db:/data/db  # 로컬에 데이터 저장
+    networks:
+      - cloud-public      
+
+  mongo-express:
+    image: mongo-express:1.0.2-18
+    container_name: mongodbDev-express
+    restart: always
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=mongo
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=qwer1234
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=qwer1234
+    ports:
+      - "8081:8081"  # Mongo Express GUI 접속 포트
+    depends_on:
+      - mongodb
+    networks:
+      - cloud-public
+
+networks:
+  cloud-public:
+    external: true
