@@ -5,7 +5,6 @@ const AuthController = require('./authController');
 const { redisClient } = require("../dependencie");
 
 logout.post('/logout', (req, res) => {
-    // console.log(req,res)
     AuthController.logout(req, res);
 });
 

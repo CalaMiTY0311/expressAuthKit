@@ -4,14 +4,13 @@ const login = express.Router();
 const AuthController = require('./authController'); 
 const { redisClient } = require("../dependencie");
 
-const LoginSessionCheck = require("../authMiddleware")
+const SessionCheck = require("../Middleware")
 
 // const authController = new AuthController(); // 인스턴스 생성
 
-login.post('/login', LoginSessionCheck, async (req, res) => {
+login.post('/login', SessionCheck, async (req, res) => {
     const result = await AuthController.login(req);
     if (result.status === 200) {
-        // console.log(result.data.user)
         const sessionToken = uuidv4();
         res.cookie('SID', sessionToken, {
             httpOnly: true,      // 브라우저 접근 제한
@@ -19,19 +18,16 @@ login.post('/login', LoginSessionCheck, async (req, res) => {
             secure: true,       // HTTP 환경에서 작동하도록 설정
             maxAge: 36000 * 1000,
           });
-        await redisClient.setEx(sessionToken, 10, JSON.stringify(result.data.user)); 
-        try {
-            const keys = await redisClient.keys('*');  // 모든 키 가져오기
-            const redisData = {};
+        await redisClient.setEx(sessionToken, 3600, JSON.stringify(result.data.user)); 
 
-            for (const key of keys) {
-                const value = await redisClient.get(key);
-                redisData[key] = value;
-            }
-        } catch (error) {
-            console.error("Error fetching Redis data:", error);
-            res.status(500).json({ error: "Failed to fetch Redis data" });
+        const keys = await redisClient.keys('*');
+        console.log("keys",keys)
+        // 레디스 전체 값 조회
+        for (let key of keys) {
+            const value = await redisClient.get(key);
+            // console.log(`Key: ${key}, Value: ${value}`);
         }
+
         res.status(result.status).json(result.data);
     } else {
         res.status(result.status).json(result.data);

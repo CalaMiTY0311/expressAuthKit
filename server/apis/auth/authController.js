@@ -10,26 +10,22 @@ class AuthController {
         this.redisClient = redisClient;
     }
 
-    async register(req, res) {
-        const { email, password} = req.body;
+    static async register(req, res) {  // static 메서드로 변경
+        const { email, password } = req.body;
         if (!email || !password) {
             return res.status(422).json({
                 email: "Email is required",
                 password: "Password is required",
             });
         }
-
         try {
             const existingUser = await mongo.selectDB({ email });
             if (existingUser.length > 0) {
                 return res.status(409).json({ error: "Email already exists" });
             }
-
             const hashedPassword = await bcrypt.hash(password, 10);
-
             const newUser = {
                 email,
-                ame,
                 password: hashedPassword,
                 bio: "",
                 profilePicURL: "",
@@ -50,19 +46,15 @@ class AuthController {
         if (!email || !password) {
             return { status: 422, data: { email: "Email is required", password: "Password is required" } };
         }
-
         try {
             const user = await mongo.selectDB({ email });
-
             if (user.length === 0) {
                 return { status: 404, data: { error: "User not found" } };
             }
-
             const isPasswordValid = await bcrypt.compare(password, user[0].password);
             if (!isPasswordValid) {
                 return { status: 401, data: { error: "Invalid credentials" } };
             }
-            
             return {
                 status: 200,
                 data: {
@@ -100,6 +92,19 @@ class AuthController {
             console.error(error);
             res.status(500).json({ error: "An error occurred while logging out" });
         }
+    }
+
+    // async updateAccount(req, res){
+    //     try {
+    //         const sessionToken = req.cookies.SID;
+    //         if (!sessionToken || !(await redisClient.get(sessionToken))) {
+    //             return res.status(400).json({ error: "Invalid session or session not found" });
+    //         }
+    //     }
+    // }
+
+    async deleteAccount(req, res){
+        
     }
 }
 

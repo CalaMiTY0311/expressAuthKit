@@ -1,8 +1,9 @@
 const { redisClient } = require("./dependencie")
 
-const LoginSessionCheck = async (req, res, next) => {
+const SessionCheck = async (req, res, next) => {
     try {
         const sessionToken = req.cookies.SID;
+        console.log("session : ",sessionToken)
         if (sessionToken) {
             const checkSID = await redisClient.get(sessionToken);
             console.log(checkSID)
@@ -18,4 +19,4 @@ const LoginSessionCheck = async (req, res, next) => {
 };
 
 
-module.exports = LoginSessionCheck;
+module.exports = SessionCheck;
