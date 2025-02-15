@@ -10,7 +10,7 @@ class AuthController {
         this.redisClient = redisClient;
     }
 
-    static async register(req, res) {  // static 메서드로 변경
+    static async register(req, res) {
         const { email, password } = req.body;
         if (!email || !password) {
             return res.status(422).json({
@@ -27,11 +27,9 @@ class AuthController {
             const newUser = {
                 email,
                 password: hashedPassword,
+                username:"",
                 bio: "",
                 profilePicURL: "",
-                followers: [],
-                following: [],
-                posts: [],
                 createdAt: Date.now(),
             };
             await mongo.insertDB(newUser);
@@ -41,6 +39,7 @@ class AuthController {
             res.status(500).json({ error: "An error occurred while registering user" });
         }
     }
+    
     static async login(req) {  // static 메소드로 변경
         const { email, password } = req.body;
         if (!email || !password) {
@@ -82,8 +81,7 @@ class AuthController {
                 return res.status(400).json({ error: "Invalid session or session not found" });
             }
             await redisClient.del(sessionToken);
-    
-            // 클라이언트 쿠키 삭제
+
             res.clearCookie('SID');
     
             return res.status(200).json({ message: "User logged out successfully" });
@@ -100,6 +98,7 @@ class AuthController {
     //         if (!sessionToken || !(await redisClient.get(sessionToken))) {
     //             return res.status(400).json({ error: "Invalid session or session not found" });
     //         }
+
     //     }
     // }
 

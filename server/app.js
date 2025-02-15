@@ -7,6 +7,7 @@ const cors = require('cors');
 const registerRouter = require('./apis/auth/register')
 const loginRouter = require('./apis/auth/login')
 const logoutRouter = require('./apis/auth/logout')
+// const googleLogin = require('./apis/auth/googleLogin');
 
 const { redisClient } = require('./apis/dependencie')
 
@@ -29,13 +30,14 @@ app.use(express.json());
 app.use(cors({
     origin: 'http://localhost:5173', // React 앱의 주소를 명시 (예: http://localhost:3000)
     // origin: 'https://calamity.netlify.app',
-    credentials: true                // 인증 정보(쿠키, 헤더 등)를 포함할 수 있도록 설정
+    credentials: true
 }));
 // 포트 정보
 const port = 3000;
 
 app.use('/auth', registerRouter);
 app.use('/auth', loginRouter);
+app.use('/auth', logoutRouter)
 
 app.get('/', (req, res) => {
   res.json({ message: `Server is running on port ${req.secure ? HTTPS_PORT : HTTP_PORT}` });
@@ -76,9 +78,6 @@ app.get('/redis', async (req, res) => {
       res.status(500).json({ error: 'Internal Server Error' });
   }
 });
-
-
-
 
 // 서버 실행
 // app.listen(port, () => {

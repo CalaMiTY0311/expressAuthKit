@@ -6,8 +6,6 @@ const { redisClient } = require("../dependencie");
 
 const SessionCheck = require("../Middleware")
 
-// const authController = new AuthController(); // 인스턴스 생성
-
 login.post('/login', SessionCheck, async (req, res) => {
     const result = await AuthController.login(req);
     if (result.status === 200) {

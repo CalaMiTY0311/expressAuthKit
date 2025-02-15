@@ -1,4 +1,4 @@
-const { redisClient } = require("./dependencie")
+const { mongo, redisClient } = require("./dependencie")
 
 const SessionCheck = async (req, res, next) => {
     try {
