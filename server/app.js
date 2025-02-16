@@ -7,7 +7,7 @@ const cors = require('cors');
 const registerRouter = require('./apis/auth/register')
 const loginRouter = require('./apis/auth/login')
 const logoutRouter = require('./apis/auth/logout')
-// const googleLogin = require('./apis/auth/googleLogin');
+const socielLogins = require('./apis/auth/socielLogins');
 
 const { redisClient } = require('./apis/dependencie')
 
@@ -37,7 +37,8 @@ const port = 3000;
 
 app.use('/auth', registerRouter);
 app.use('/auth', loginRouter);
-app.use('/auth', logoutRouter)
+app.use('/auth', logoutRouter);
+app.use('/auth', socielLogins)
 
 app.get('/', (req, res) => {
   res.json({ message: `Server is running on port ${req.secure ? HTTPS_PORT : HTTP_PORT}` });

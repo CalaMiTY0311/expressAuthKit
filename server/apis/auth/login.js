@@ -25,7 +25,6 @@ login.post('/login', SessionCheck, async (req, res) => {
             const value = await redisClient.get(key);
             // console.log(`Key: ${key}, Value: ${value}`);
         }
-
         res.status(result.status).json(result.data);
     } else {
         res.status(result.status).json(result.data);

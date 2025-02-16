@@ -3,7 +3,7 @@ const { mongo, redisClient } = require("./dependencie")
 const SessionCheck = async (req, res, next) => {
     try {
         const sessionToken = req.cookies.SID;
-        console.log("session : ",sessionToken)
+        // console.log("session : ",sessionToken)
         if (sessionToken) {
             const checkSID = await redisClient.get(sessionToken);
             console.log(checkSID)
