@@ -44,24 +44,17 @@ app.get('/', (req, res) => {
   res.json({ message: `Server is running on port ${req.secure ? HTTPS_PORT : HTTP_PORT}` });
 });
 
-// app.post('/post', (req, res) => {
-//   res.cookie('myCookie', 'exampleValue', {
-//     httpOnly: true,      // 브라우저 접근 제한
-//     // sameSite: 'None',    // 서로 다른 도메인에서도 쿠키 전달 허용
-//     secure: true,       // HTTP 환경에서 작동하도록 설정
-//     maxAge: 36000 * 1000,
-//   });
-//   res.send('세션이 설정되었습니다.');
-// });
-
-// app.get('/check', async (req, res) => {
-//     const sessionId = req.cookies.sessionId;
-  
-//     if (!sessionId) {
-//       return res.send('세션 ID가 없습니다.');
-//     }
-//     res.send(`세션에 저장된 데이터: ${sessionId}`);
-// })
+app.get('/reset-redis', async (req, res) => {
+  try {
+      // Redis 모든 데이터 초기화 (flushAll)
+      await redisClient.flushAll(); // 비동기 방식으로 수정
+      console.log('Redis 데이터 초기화 완료!');
+      res.status(200).send('Redis 데이터 초기화 완료!');
+  } catch (error) {
+      console.error('Redis 초기화 중 오류 발생:', error);
+      res.status(500).send('Redis 초기화 오류');
+  }
+});
 
 app.get('/redis', async (req, res) => {
   try {
