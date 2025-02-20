@@ -16,22 +16,13 @@ if (result.status === 200) {
         secure: true,       // HTTP 환경에서 작동하도록 설정
         maxAge: 36000 * 1000,
         });
-    // await redisClient.setEx(SID, 3600, JSON.stringify(result.data.user));
-    // console.log(result.data.user)
+
     _id = result.data.user._id;
     console.log(_id,typeof _id)
 
-await redisClient.setEx(`session:${SID}`, 3600, JSON.stringify({ _id: _id })); 
-await redisClient.sAdd(`user_sessions:${_id}`, SID);
+    await redisClient.setEx(`session:${SID}`, 3600, JSON.stringify({ _id: _id })); 
+    // await redisClient.sAdd(`user_sessions:${_id}`, SID);
 
-    // console.log(result.data.user)
-    const keys = await redisClient.keys('*');
-    console.log("keys",keys)
-    // 레디스 전체 값 조회
-    for (let key of keys) {
-        const value = await redisClient.get(key);
-        console.log(`Key: ${key}, Value: ${value}`);
-    }
     res.status(result.status).json(result.data);
 } else {
     res.status(result.status).json(result.data);

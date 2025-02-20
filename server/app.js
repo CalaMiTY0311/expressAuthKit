@@ -59,17 +59,24 @@ app.get('/reset-redis', async (req, res) => {
 app.get('/redis', async (req, res) => {
   try {
       const keys = await redisClient.keys('*'); // 모든 키 가져오기
-      const values = await Promise.all(keys.map(key => redisClient.get(key))); // 각 키에 대한 값 가져오기
-      
-      const result = keys.reduce((acc, key, index) => {
-          acc[key] = values[index];
-          return acc;
-      }, {});
-      
+      const result = {};
+
+      for (const key of keys) {
+          const type = await redisClient.type(key); // 키의 타입 확인
+
+          if (type === 'string') {
+              result[key] = await redisClient.get(key);
+          } else if (type === 'set') {
+              result[key] = await redisClient.sMembers(key);
+          } else {
+              result[key] = `Unsupported type: ${type}`;
+          }
+      }
+
       res.json(result);
   } catch (error) {
-      console.error('❌ Error fetching Redis data:', error);
-      res.status(500).json({ error: 'Internal Server Error' });
+      console.error('Redis 조회 중 오류 발생:', error);
+      res.status(500).json({ error: 'Redis 조회 중 오류 발생' });
   }
 });
 

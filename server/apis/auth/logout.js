@@ -4,8 +4,9 @@ const logout = express.Router();
 const AuthController = require('./authController'); 
 const { redisClient } = require("../dependencie");
 
-logout.post('/logout', (req, res) => {
-    AuthController.logout(req, res);
+logout.post('/logout', async (req, res) => {
+    const result = await AuthController.logout(req);
+    res.status(result.status).json(result.data.msg)
 });
 
 module.exports = logout;

@@ -65,8 +65,7 @@ static async login(req) {
         }
         return {
             status: 200,
-            data: {
-                message: "회원가입 성공",
+            msg: "회원가입 성공",
                 user: {
                     _id: user[0]._id,
                     email: user[0].email,
@@ -75,25 +74,37 @@ static async login(req) {
                     profilePicURL: user[0].profilePicURL,
                 },
             }
-        };
     } catch (error) {
         console.error(error);
         return { status: 500, data: { error: "어스서버 에러 발생" } };
     }
 }
 
-async logout(req, res) {
+static async logout(req, res) {
     try {
         const sessionToken = req.cookies.SID;
         if (!sessionToken || !(await redisClient.get(sessionToken))) {
-            return res.status(400).json({ error: "이미 만료되었거나 존재하지않는 세션입니다." });
+            // return res.status(400).json({ error: "이미 만료되었거나 존재하지않는 세션입니다." });
+            return {
+                status:400,
+                msg:"이미 만료되었거나 존재하지않는 세션",
+            } 
+        } else {
+            await redisClient.del(sessionToken);
+            res.clearCookie('SID');
+            return {
+                status:200,
+                    msg:"로그아웃 완료"
+            }
         }
-        await redisClient.del(sessionToken);
-        res.clearCookie('SID');
-        return res.status(200).json({ message: "User logged out successfully" });
+        // return res.status(200).json({ message: "User logged out successfully" });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: "An error occurred while logging out" });
+        return {
+            status:500,
+                msg:"어스 컨트롤러 에러 서버 확인필요"
+        }
+        // res.status(500).json({ error: "An error occurred while logging out" });
     }
 }
 
