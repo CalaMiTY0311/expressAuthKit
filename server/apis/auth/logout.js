@@ -4,9 +4,11 @@ const logout = express.Router();
 const AuthController = require('./authController'); 
 const { redisClient } = require("../dependencie");
 
-logout.post('/logout', async (req, res) => {
+const { SessionCheck } = require("../Middleware")
+
+logout.post('/logout',SessionCheck, async (req, res) => {
     const result = await AuthController.logout(req);
-    res.status(result.status).json(result.data.msg)
+    res.status(result.status).json(result.msg)
 });
 
 module.exports = logout;

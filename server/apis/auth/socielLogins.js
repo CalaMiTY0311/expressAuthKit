@@ -4,7 +4,7 @@ const socielLogins = express.Router();
 const AuthController = require('./authController'); 
 const { mongo, redisClient } = require("../dependencie");
 
-const SessionCheck = require("../Middleware")
+const { SessionCheck } = require("../Middleware")
 
 const { StatusCodes } = require('http-status-codes');
 const { google } = require('googleapis');
@@ -80,7 +80,7 @@ try {
     secure: true,       // HTTP 환경에서 작동하도록 설정
     maxAge: 36000 * 1000,
   });
-  await redisClient.setEx(SID, 3600, JSON.stringify(userInfo.data));
+  await redisClient.setEx(`session:${SID}`, 3600, JSON.stringify(userInfo.data));
 
   console.log("userInfo : ",userInfo.data)
   res.send({

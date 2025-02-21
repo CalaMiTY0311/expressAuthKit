@@ -24,9 +24,21 @@ static async register(req) {
         if (existingUser.length > 0) {
             return { status: 409, msg:"이미 가입된 이메일 입니다."}
         }
+
+        // 몽고DB nanoid 중복 값 충돌 방지
+        let _id;
+        let flag = false;
+        while (!flag) {
+            _id = nanoid();
+            const existingId = await mongo.selectDB({ _id });
+            if (!existingId.length > 0) {
+                isflag = true;
+            }
+        }
+        
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUser = {
-            _id: nanoid(),
+            _id,
             email:email,
             password: hashedPassword,
             username:"",
@@ -65,7 +77,7 @@ static async login(req) {
         }
         return {
             status: 200,
-            msg: "회원가입 성공",
+            msg: "로그인 성공",
                 user: {
                     _id: user[0]._id,
                     email: user[0].email,
@@ -92,6 +104,8 @@ static async logout(req, res) {
         } else {
             await redisClient.del(sessionToken);
             res.clearCookie('SID');
+            res.clearCookie('UID');
+            console.log(req.cookies.SID)
             return {
                 status:200,
                     msg:"로그아웃 완료"
@@ -118,10 +132,28 @@ static async logout(req, res) {
 //     }
 // }
 
-async deleteAccount(req, res){
-    
+static async deleteAccount(req){
+    try {
+        console.log(req.cookies)
+        const _id = req.cookies.UID;
+        // console.log(UID)
+        const user = await mongo.selectDB({_id})
+        console.log(user)
+        return {
+            status:200,
+            msg:"계정 삭제 성공",
+            user:user
+        }
+    } catch(error){
+        return {
+            status:500,
+            msg:`계정 삭제 에러 : ${error}`
+        }
+    }
 }
+
 }
 
 // module.exports = new AuthController(mongo, redisClient);
 module.exports = AuthController;
+
