@@ -112,15 +112,44 @@ static async logout(req) {
     }
 }
 
-// async updateAccount(req, res){
-//     try {
-//         const sessionToken = req.cookies.SID;
-//         if (!sessionToken || !(await redisClient.get(sessionToken))) {
-//             return res.status(400).json({ error: "Invalid session or session not found" });
-//         }
+async updateAccount(req, res){
+    try {
+        const _id = req.cookies.UID;
+        if (!_id) {
+            return {
+                status: 400,
+                msg: "잘못된 요청: UID가 없습니다."
+            };
+        }
+        const updateData = req.body;  // 업데이트할 데이터
+        if (!updateData || Object.keys(updateData).length === 0) {
+            return {
+                status: 400,
+                msg: "업데이트할 데이터가 없습니다."
+            };
+        }
+        const user = await mongo.selectDB({ _id });
+        if (!user) {
+            return {
+                status: 404,
+                msg: "사용자를 찾을 수 없습니다."
+            };
+        }
+        const updatedUser = await mongo.updateDB({ _id }, updateData);
 
-//     }
-// }
+        return {
+            status: 200,
+            msg: "계정 업데이트 성공",
+            user: updatedUser
+        };
+    } catch (error) {
+        return {
+            status: 500,
+            msg: `계정 업데이트 에러: ${error}`
+        };
+    
+    }
+}
 
 static async deleteAccount(req){
     try {
