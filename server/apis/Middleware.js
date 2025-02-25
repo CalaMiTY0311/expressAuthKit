@@ -1,4 +1,4 @@
-const { mongo, redisClient } = require("./dependencie")
+const { mongo, redisClient } = require("./dependencie");
 
 const againLoginCheck = async (req, res, next) => {
     try{
@@ -17,23 +17,22 @@ const againLoginCheck = async (req, res, next) => {
     }
 }
 
-const SessionCheck = async (req, res, next) => {
+const sessionCheck = async (req, res, next) => {
+    const SID = req.cookies.SID;
+    if (!SID) {
+        return res.status(403).json({ msg : "존재하지 않거나 세션 만료된 사용자" });
+    }
     try {
-        const SID = req.cookies.SID;
-        console.log(SID)
-        if (SID) {
-            const flag = await redisClient.get(`session:${SID}`);
-            console.log(flag)
-            if (!flag){
-                return res.status(403).json({ msg : "만료된 사용자" });
-            } 
+        const flag = await redisClient.get(`session:${SID}`);
+        if (!flag) {
+            return res.status(403).json({ msg : "존재하지않는 세션" });
         }
         next();
     } catch (error) {
-        console.error("Redis session check error:", error);
+        console.error("Session Check middleware error:", error);
         res.status(500).json({ msg : error });
     }
 };
 
 
-module.exports = {againLoginCheck, SessionCheck}
+module.exports = {againLoginCheck, sessionCheck}

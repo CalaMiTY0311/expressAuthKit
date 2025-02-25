@@ -92,25 +92,15 @@ static async login(req) {
     }
 }
 
-static async logout(req, res) {
+static async logout(req) {
     try {
-        const sessionToken = req.cookies.SID;
-        if (!sessionToken || !(await redisClient.get(sessionToken))) {
-            // return res.status(400).json({ error: "이미 만료되었거나 존재하지않는 세션입니다." });
-            return {
-                status:400,
-                msg:"이미 만료되었거나 존재하지않는 세션",
-            } 
-        } else {
-            await redisClient.del(sessionToken);
-            res.clearCookie('SID');
-            res.clearCookie('UID');
-            console.log(req.cookies.SID)
+            const SID = req.cookies.SID;
+            // console.log(req.cookies.SID)
             return {
                 status:200,
-                    msg:"로그아웃 완료"
+                msg:"로그아웃 완료",
+                SID:SID
             }
-        }
         // return res.status(200).json({ message: "User logged out successfully" });
     } catch (error) {
         console.error(error);
@@ -134,15 +124,29 @@ static async logout(req, res) {
 
 static async deleteAccount(req){
     try {
-        console.log(req.cookies)
-        const _id = req.cookies.UID;
-        // console.log(UID)
-        const user = await mongo.selectDB({_id})
-        console.log(user)
+        const { id } = req.params; // URL에서 ID 가져오기
+        // const _id = req.cookies.UID;
+        if (!id) {
+            return {
+                status: 400,
+                msg: "잘못된 요청: ID가 없습니다."
+            };
+        }
+        const user = await mongo.selectDB({ _id: id });
+        if (!user) {
+            return {
+                status: 404,
+                msg: "사용자를 찾을 수 없습니다."
+            };
+        }
+        await mongo.deleteDB({ _id: id });
+        const SID = req.cookies.SID;
+        if (SID) {
+            await redisClient.del(`session:${SID}`);
+        }
         return {
             status:200,
-            msg:"계정 삭제 성공",
-            user:user
+            msg:"사용자 회원삭제 완료",
         }
     } catch(error){
         return {

@@ -1,10 +1,10 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
-const deleteAccount = express.Router();
+const accountOptions = express.Router();
 const AuthController = require('./authController'); 
 const { redisClient } = require("../dependencie");
 
-const {SessionCheck} = require("../Middleware");
+const {sessionCheck} = require("../Middleware");
 
 // deleteAccount.post('/deleteAccount', async (req, res) => {
 //     const { userId } = req.body;
@@ -42,9 +42,10 @@ const {SessionCheck} = require("../Middleware");
 //     }
 // });
 
-deleteAccount.post('/deleteAccount', async (req, res) => {
+accountOptions.delete('/deleteAccount/:id', sessionCheck, async (req, res) => {
     const result = await AuthController.deleteAccount(req);
+    res.clearCookie(req.cookies.UID)
     res.status(result.status).json(result);
 })
 
-module.exports = deleteAccount;
+module.exports = accountOptions;

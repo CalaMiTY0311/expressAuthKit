@@ -1,14 +1,13 @@
 // express 불러오기
 const express = require('express');
 const cookieParser = require('cookie-parser');
-const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
 
 const registerRouter = require('./apis/auth/register')
 const loginRouter = require('./apis/auth/login')
 const logoutRouter = require('./apis/auth/logout')
 const socielLogins = require('./apis/auth/socielLogins');
-const deleteAccount = require('./apis/auth/deleteAccount');
+const accountOptions = require('./apis/auth/accountOptions');
 
 const { redisClient } = require('./apis/dependencie')
 
@@ -40,7 +39,7 @@ app.use('/auth', registerRouter);
 app.use('/auth', loginRouter);
 app.use('/auth', logoutRouter);
 app.use('/auth', socielLogins)
-app.use('/auth', deleteAccount)
+app.use('/auth', accountOptions)
 
 app.get('/', (req, res) => {
   res.json({ message: `Server is running on port ${req.secure ? HTTPS_PORT : HTTP_PORT}` });
