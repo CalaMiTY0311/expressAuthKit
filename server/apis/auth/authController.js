@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const ControlMongo = require('../../src/util/mongoDB');
 // const redisClient = require('../config/redis'); // Redis 연결 파일
+const {userSchema, userFields} = require("../../src/util/dbSchema");
 const { mongo, redisClient } = require("../dependencie")
 const { nanoid } = require('nanoid');
 
@@ -12,7 +13,9 @@ constructor(mongo, redisClient) {
 }
 
 static async register(req) {
-    const { email, password } = req.body;
+    const {email,password} = req.body
+
+    // const { email, password } = req.body;
     if (!email || !password) {
         return res.status(422).json({
             email: "Email is required",
@@ -24,7 +27,6 @@ static async register(req) {
         if (existingUser.length > 0) {
             return { status: 409, msg:"이미 가입된 이메일 입니다."}
         }
-
         // 몽고DB nanoid 중복 값 충돌 방지
         let _id;
         let flag = false;
@@ -32,21 +34,32 @@ static async register(req) {
             _id = nanoid();
             const existingId = await mongo.selectDB({ _id });
             if (!existingId.length > 0) {
-                isflag = true;
+                flag = true;
             }
         }
-        
+        const newUser = {};
+        for (const field of userFields) {
+            if (req.body[field] !== undefined) {
+                newUser[field] = req.body[field];
+            } else if (userSchema[field]?.default !== undefined) {
+                newUser[field] = typeof userSchema[field].default === "function"
+                    ? userSchema[field].default()  // Date 등의 동적 기본값
+                    : userSchema[field].default;
+            }
+        }
+        newUser._id = _id;
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = {
-            _id,
-            email:email,
-            password: hashedPassword,
-            username:"",
-            bio: "",
-            profilePicURL: "",
-            createdAt: Date.now(),
-            // 이 뒤로 사용자 정보에 추가하고싶은 값이 있으면 추가해 나가면됌 ex) 리스트타입의 팔로우 목록 or 친구 목록 등등..
-        };
+        newUser.password = hashedPassword;
+        // const newUser = {
+        //     _id,
+        //     email:email,
+        //     password: hashedPassword,
+        //     username:"",
+        //     bio: "",
+        //     profilePicURL: "",
+        //     createdAt: Date.now(),
+        //     // 이 뒤로 사용자 정보에 추가하고싶은 값이 있으면 추가해 나가면됌 ex) 리스트타입의 팔로우 목록 or 친구 목록 등등..
+        // };
         await mongo.insertDB(newUser);
         return {
             status:200,
@@ -95,32 +108,22 @@ static async login(req) {
 static async logout(req) {
     try {
             const SID = req.cookies.SID;
-            // console.log(req.cookies.SID)
             return {
                 status:200,
                 msg:"로그아웃 완료",
                 SID:SID
             }
-        // return res.status(200).json({ message: "User logged out successfully" });
     } catch (error) {
         console.error(error);
         return {
             status:500,
                 msg:"어스 컨트롤러 에러 서버 확인필요"
         }
-        // res.status(500).json({ error: "An error occurred while logging out" });
     }
 }
 
-async updateAccount(req, res){
+static async updateAccount(req){
     try {
-        const _id = req.cookies.UID;
-        if (!_id) {
-            return {
-                status: 400,
-                msg: "잘못된 요청: UID가 없습니다."
-            };
-        }
         const updateData = req.body;  // 업데이트할 데이터
         if (!updateData || Object.keys(updateData).length === 0) {
             return {

@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const socielLogins = express.Router();
 const AuthController = require('./authController');
 const { mongo, redisClient } = require("../dependencie");
+const {userSchema, userFields} = require("../../src/util/dbSchema")
 
 const { againLoginCheck } = require("../Middleware")
 
