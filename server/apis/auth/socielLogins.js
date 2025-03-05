@@ -34,8 +34,6 @@ socielLogins.get('/googleLogin', againLoginCheck, (req, res) => {
 // Google 인증 후 콜백 처리
 socielLogins.get('/googleLogin/callback', async (req, res) => {
   const code = req.query.code;
-  console.log("code :", code)
-
   if (!code) {
     return res.redirect('/');
   }
@@ -55,15 +53,17 @@ socielLogins.get('/googleLogin/callback', async (req, res) => {
     if (existingUser.length > 0) {
       console.log("이미 가입된 이메일입니다.");
     } else {
-      const newUser = {
-        _id: userInfo.data.id, // Google에서 제공하는 ID 사용
-        email: email,
-        username: userInfo.data.name || "", // 기본값 설정
-        bio: "",
-        profilePicURL: userInfo.data.picture,
-        createdAt: Date.now(),
-        provider: "google"
-      };
+      const newUser = { _id: userInfo.data.id };
+      for (const field of userFields) {
+        if (userInfo.data[field] !== undefined) {
+          newUser[field] = userInfo.data[field];
+        } else if (userSchema[field]?.default !== undefined) {
+          newUser[field] = typeof userSchema[field].default === "function"
+            ? userSchema[field].default()  // Date 등 동적 기본값
+            : userSchema[field].default;
+        }
+      }
+      newUser.provider = "google";
       await mongo.insertDB(newUser)
     }
     SID = userInfo.config.headers.Authorization
@@ -92,21 +92,5 @@ socielLogins.get('/googleLogin/callback', async (req, res) => {
     res.redirect('/');
   }
 });
-
-// // 사용자 프로필 정보
-// socielLogins.get('/profile', (req, res) => {    
-//   try {
-//       const user = req.session.user;
-//       res.status(StatusCodes.OK).json(user);
-//   } catch (err) {
-//       res.status(StatusCodes.INTERNAL_SERVER_ERROR);
-//   }
-// });
-
-// // 로그아웃
-// socielLogins.get('/logout', (req, res) => {
-//   req.session = null; // 세션 삭제
-//   res.redirect('/');
-// });
 
 module.exports = socielLogins;

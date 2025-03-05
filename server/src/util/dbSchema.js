@@ -2,10 +2,10 @@ const userSchema = {
     _id:String,
     username:{ type: String, default: "user" },
     email:String,
-    password: String,
+    password: { type: String, default: null },
     bio:{ type: String, default: "" },
     profilePicURL: { type: String, default: "" },
-    createdAt: { type: Date, default: () => new Date() },
+    createdAt: { type: Number, default: Date.now },
     provider:{ type: String, default: "local" }
 };
 

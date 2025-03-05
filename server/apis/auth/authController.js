@@ -13,15 +13,7 @@ constructor(mongo, redisClient) {
 }
 
 static async register(req) {
-    const {email,password} = req.body
-
-    // const { email, password } = req.body;
-    if (!email || !password) {
-        return res.status(422).json({
-            email: "Email is required",
-            password: "Password is required",
-        });
-    }
+    const { email, password } = req.body
     try {
         const existingUser = await mongo.selectDB({ email });
         if (existingUser.length > 0) {
@@ -37,6 +29,7 @@ static async register(req) {
                 flag = true;
             }
         }
+        // src/util/dbSchema를 사용해 db 유저 필드 생성
         const newUser = {};
         for (const field of userFields) {
             if (req.body[field] !== undefined) {
@@ -50,20 +43,11 @@ static async register(req) {
         newUser._id = _id;
         const hashedPassword = await bcrypt.hash(password, 10);
         newUser.password = hashedPassword;
-        // const newUser = {
-        //     _id,
-        //     email:email,
-        //     password: hashedPassword,
-        //     username:"",
-        //     bio: "",
-        //     profilePicURL: "",
-        //     createdAt: Date.now(),
-        //     // 이 뒤로 사용자 정보에 추가하고싶은 값이 있으면 추가해 나가면됌 ex) 리스트타입의 팔로우 목록 or 친구 목록 등등..
-        // };
         await mongo.insertDB(newUser);
         return {
-            status:200,
-            msg:"회원가입 성공"
+            status:201,
+            msg:"회원가입 성공",
+            user:newUser
         }
     } catch (error) {
         console.error(error);
@@ -76,32 +60,49 @@ static async register(req) {
 
 static async login(req) {
     const { email, password } = req.body;
-    if (!email || !password) {
-        return { status: 422, data: { email: "Email is required", password: "Password is required" } };
-    }
     try {
         const user = await mongo.selectDB({ email });
+        
         if (user.length === 0) {
-            return { status: 401, data: { error: "존재하지않는 유저입니다." } };
+            return { 
+                status: 401, 
+                msg: "존재하지 않는 유저입니다." 
+            };
         }
+        console.log(user[0])
+        console.log(user[0].provider)
+        if (user[0].provider !== "local"){
+            return {
+                status:400,
+                msg:"이미 가입된 소셜 로그인 계정입니다."
+            }
+        }
+        
         const isPasswordValid = await bcrypt.compare(password, user[0].password);
         if (!isPasswordValid) {
-            return { status: 401, data: { error: "존재하지않는 유저입니다." } };
+            return { 
+                status: 401, 
+                msg: "비밀번호가 일치하지 않습니다." 
+            };
         }
+        
         return {
             status: 200,
             msg: "로그인 성공",
-                user: {
-                    _id: user[0]._id,
-                    email: user[0].email,
-                    username: user[0].username,
-                    bio: user[0].bio,
-                    profilePicURL: user[0].profilePicURL,
-                },
-            }
+            user: {
+                _id: user[0]._id,
+                email: user[0].email,
+                username: user[0].username,
+                bio: user[0].bio,
+                profilePicURL: user[0].profilePicURL,
+            },
+        }
     } catch (error) {
         console.error(error);
-        return { status: 500, data: { error: "어스서버 에러 발생" } };
+        return { 
+            status: 500, 
+            msg: "서버 에러가 발생했습니다. 잠시 후 다시 시도해주세요." 
+        };
     }
 }
 
@@ -123,23 +124,29 @@ static async logout(req) {
 }
 
 static async updateAccount(req){
-    try {
-        const updateData = req.body;  // 업데이트할 데이터
+    const updateData = req.body;
         if (!updateData || Object.keys(updateData).length === 0) {
             return {
                 status: 400,
                 msg: "업데이트할 데이터가 없습니다."
             };
         }
+        if (updateData.password !== undefined) {
+            return {
+                status: 400,
+                msg: "비밀번호는 이 경로에서 변경할 수 없습니다."
+            };
+        }
+    try {
+        const _id = req.cookies.UID;
         const user = await mongo.selectDB({ _id });
         if (!user) {
             return {
                 status: 404,
                 msg: "사용자를 찾을 수 없습니다."
             };
-        }
+        } 
         const updatedUser = await mongo.updateDB({ _id }, updateData);
-
         return {
             status: 200,
             msg: "계정 업데이트 성공",
@@ -150,13 +157,49 @@ static async updateAccount(req){
             status: 500,
             msg: `계정 업데이트 에러: ${error}`
         };
-    
+    }
+}
+static async changePassword(req){
+    const { password } = req.body;
+        if (!password) {
+            return {
+                status: 400,
+                msg: "비밀번호가 필요합니다."
+            };
+        }
+        if (Object.keys(req.body).length > 1) {
+            return {
+                status: 400,
+                msg: "비밀번호 변경 요청에는 'password' 필드만 포함되어야 합니다."
+            };
+        }
+    try {
+        const { _id } = req.cookies.UID;
+        const user = await mongo.selectDB({ _id });
+        if (!user) {
+            return {
+                status: 404,
+                msg: "사용자를 찾을 수 없습니다."
+            };
+        }
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await mongo.updateDB({ _id }, { password: hashedPassword });
+
+        return {
+            status: 200,
+            msg: "비밀번호 변경 성공"
+        };
+
+    } catch (error) {
+        return {
+            status: 500,
+            msg: `비밀번호 변경 에러: ${error}`
+        };
     }
 }
 
 static async deleteAccount(req){
-    try {
-        const { id } = req.params; // URL에서 ID 가져오기
+    const { id } = req.params; // URL에서 ID 가져오기
         // const _id = req.cookies.UID;
         if (!id) {
             return {
@@ -164,6 +207,7 @@ static async deleteAccount(req){
                 msg: "잘못된 요청: ID가 없습니다."
             };
         }
+    try {
         const user = await mongo.selectDB({ _id: id });
         if (!user) {
             return {
@@ -172,10 +216,6 @@ static async deleteAccount(req){
             };
         }
         await mongo.deleteDB({ _id: id });
-        const SID = req.cookies.SID;
-        if (SID) {
-            await redisClient.del(`session:${SID}`);
-        }
         return {
             status:200,
             msg:"사용자 회원삭제 완료",
@@ -187,6 +227,7 @@ static async deleteAccount(req){
         }
     }
 }
+
 
 }
 

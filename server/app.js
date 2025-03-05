@@ -32,8 +32,9 @@ app.use(cors({
     // origin: 'https://calamity.netlify.app',
     credentials: true
 }));
+
 // 포트 정보
-const port = 3000;
+// const port = 3000;
 
 app.use('/auth', registerRouter);
 app.use('/auth', loginRouter);

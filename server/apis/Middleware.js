@@ -1,4 +1,5 @@
-const { mongo, redisClient } = require("./dependencie");
+const { redisClient } = require("./dependencie");
+
 
 const againLoginCheck = async (req, res, next) => {
     try{
@@ -7,7 +8,7 @@ const againLoginCheck = async (req, res, next) => {
             const flag = await redisClient.get(`session:${SID}`);
             console.log(flag)
             if (flag) {
-                return res.status(403).json({ msg: "이미 로그인된 상태입니다." });
+                return res.status(403).json({ msg: "이미 로그인된 상태로 로그아웃이 필요" });
             }
         }
         next();
