@@ -12,6 +12,12 @@ constructor(mongo, redisClient) {
     this.redisClient = redisClient;
 }
 
+// async function verityIdentity({email, password}) {
+//     try {
+//         const exi
+//     }
+// }
+
 static async register(req) {
     const { email, password } = req.body
     try {
@@ -69,8 +75,8 @@ static async login(req) {
                 msg: "존재하지 않는 유저입니다." 
             };
         }
-        console.log(user[0])
-        console.log(user[0].provider)
+        // console.log(user[0])
+        // console.log(user[0].provider)
         if (user[0].provider !== "local"){
             return {
                 status:400,
@@ -85,7 +91,7 @@ static async login(req) {
                 msg: "비밀번호가 일치하지 않습니다." 
             };
         }
-        
+        // console.log(user)
         return {
             status: 200,
             msg: "로그인 성공",
@@ -95,6 +101,8 @@ static async login(req) {
                 username: user[0].username,
                 bio: user[0].bio,
                 profilePicURL: user[0].profilePicURL,
+                totpSecret: user[0].totpSecret,
+                totpEnable: user[0].totpEnable
             },
         }
     } catch (error) {

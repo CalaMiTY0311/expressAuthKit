@@ -6,7 +6,10 @@ const userSchema = {
     bio:{ type: String, default: "" },
     profilePicURL: { type: String, default: "" },
     createdAt: { type: Number, default: Date.now },
-    provider:{ type: String, default: "local" }
+    provider:{ type: String, default: "local" },
+
+    totpEnable: { type: Boolean, default: true },  // TOTP 활성화 여부
+    totpSecret: { type: String, default: null }     // TOTP 비밀 키
 };
 
 const userFields = Object.keys(userSchema);
