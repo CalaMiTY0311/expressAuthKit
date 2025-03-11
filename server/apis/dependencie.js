@@ -6,12 +6,7 @@ const REDIS_URL = process.env.REDIS_URL;  // 기본값: localhost
 const REDIS_PORT = process.env.REDIS_PORT || 6379;  // 기본값: 6379
 
 // ✅ MongoDB 연결 설
-const mongo = new ControlMongo(
-    // MONGODB_USERNAME,
-    // MONGODB_PASSWORD,
-    'Server',
-    'Users'
-);
+const mongo = new ControlMongo('Server', 'Users');
 
 const redisClient = createClient({
     // url: `redis://${REDIS_URL}:${REDIS_PORT}`

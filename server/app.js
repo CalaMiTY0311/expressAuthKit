@@ -82,6 +82,10 @@ app.get('/redis', async (req, res) => {
   }
 });
 
+
+app.get('/api/greet', (req, res) => {
+    res.status(200).json({ message: 'Hello, world!' });
+  });
 // 서버 실행
 // app.listen(port, () => {
 //   console.log(`App running on port ${port}...`);
@@ -92,3 +96,5 @@ http.createServer(app).listen(HTTP_PORT);
 
 // Create an HTTPS server.
 https.createServer(options, app).listen(HTTPS_PORT);
+
+module.exports = app
