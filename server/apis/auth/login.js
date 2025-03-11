@@ -26,13 +26,7 @@ async function setSession(res, UID) {
         secure: true,
         maxAge: 36000 * 1000,
     });
-    await redisClient.setEx(`session:${SID}`, 3600, JSON.stringify({ _id: userId }));
-    return;
-}
-
-async function setVerifycode(UID) {
-    const verifycode = uuidv4();
-    await redisClient.setEx(`verifycode:${verifycode}`, 300, UID);
+    await redisClient.setEx(`session:${SID}`, 3600, JSON.stringify({ UID: UID }));
     return;
 }
 
@@ -58,18 +52,16 @@ login.post('/login', againLoginCheck,
                         status: 'success',
                         message: '로그인에 성공했습니다.',
                         user: {
-                            _id: user._id,
+                            UID: user._id,
                             email: user.email
                             // 필요한 사용자 정보 추가
                         }
                     });
                 } else {
-                    const _id = user._id;
+                    const UID = user._id;
                     const email = user.email;
-                    // console.log(_id,email)
-                    await setVerifycode(_id)
 
-                    const emailAuthResult = await totpEmail.generateAndSendVerificationCode(_id, email);
+                    const emailAuthResult = await totpEmail.sendVerifyCode(email, UID);
 
                     if (!emailAuthResult.success) {
                         return res.status(500).json({
@@ -82,7 +74,7 @@ login.post('/login', againLoginCheck,
                         status: 'success',
                         message: '2FA 인증 코드가 이메일로 전송되었습니다.',
                         user: {
-                            _id: _id,
+                            UID: UID,
                             email: email
                             // 필요한 사용자 정보 추가
                         }
@@ -104,7 +96,7 @@ login.post('/login', againLoginCheck,
     }
 );
 
-login.post('/verify-2fa', [
+login.post('/verifyEmail', [
     body('code').isLength({ min: 6, max: 6 }).isNumeric().withMessage('유효한 6자리 인증 코드를 입력하세요')
 ], async (req, res) => {
     try {
@@ -116,34 +108,23 @@ login.post('/verify-2fa', [
                 errors: errors.array() 
             });
         }
-
         const { code } = req.body;
-        
-        // inMemoSession에서 사용자 ID 가져오기
-        const userId = req.inMemoSession.get('_id');
-        
-        if (!userId) {
+        const UID = req.headers['uid'];
+        if (!UID) {
             return res.status(401).json({
                 status: 'error',
                 message: '인증 세션이 만료되었습니다. 다시 로그인해주세요.'
             });
         }
-
-        // 인증 코드 검증
-        const verificationResult = await totpEmail.verifyEmailCode(userId, code);
-
+        const verificationResult = await totpEmail.checkVerifyCode(UID, code);
         if (!verificationResult.success) {
             return res.status(400).json({
                 status: 'error',
                 message: verificationResult.message
             });
         }
-
-        // 인증 성공 시 실제 사용자 세션 설정
-        await setSession(res, userId);
-        
-        // inMemoSession에서 임시 데이터 삭제
-        req.inMemoSession.delete('_id');
+        await setSession(res, UID);
+        await redisClient.del(`verifyEmail:${UID}`);
 
         // 성공 응답
         return res.status(200).json({

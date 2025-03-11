@@ -2,44 +2,51 @@
 const nodemailer = require('nodemailer');
 const { redisClient } = require("../dependencie");
 
-// nodemailer 트랜스포터 설정
-// const transporter = nodemailer.createTransport({
-//     service: 'gmail', // 또는 다른 이메일 서비스
-//     auth: {
-//         user: process.env.EMAIL_USER,
-//         pass: process.env.EMAIL_PASSWORD
-//     }
-// });
+console.log(process.env.EMAIL_USER, process.env.EMAIL_PASSWORD)
 
 let transporter;
 let testAccount; // testAccount를 전역 변수로 선언
 
-async function initializeTransporter() {
-    testAccount = await nodemailer.createTestAccount(); // 값 할당
-    // 테스트용 transporter 생성
+if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
     transporter = nodemailer.createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
+        service: 'gmail',
         auth: {
-            user: testAccount.user,
-            pass: testAccount.pass
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASSWORD
         }
     });
+    console.log('Gmail 트랜스포터로 초기화됨');
+} else {
+    // 환경 변수가 없는 경우 Ethereal 테스트 계정 사용
+    async function initializeTestTransporter() {
+        try {
+            testAccount = await nodemailer.createTestAccount();
+            transporter = nodemailer.createTransport({
+                host: 'smtp.ethereal.email',
+                port: 587,
+                secure: false,
+                auth: {
+                    user: testAccount.user,
+                    pass: testAccount.pass
+                }
+            });
+            console.log('Ethereal 테스트 트랜스포터로 초기화됨');
+        } catch (err) {
+            console.error('이메일 트랜스포터 초기화 오류:', err);
+        }
+    }
+    
+    // 초기화 함수 호출
+    initializeTestTransporter();
 }
 
-// 초기화 함수 호출
-initializeTransporter().catch(err => {
-    console.error('이메일 트랜스포터 초기화 오류:', err);
-});
-
-// 6자리 랜덤 코드 생성 함수
-function generateEmailCode() {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-}
+// async function createVerifyCode(){
+//     const verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
+//     return verifyCode
+// }
 
 // 이메일 인증 코드 전송 함수
-async function sendVerificationEmail(email, code) {
+async function sendEmail(email, code) {
     // transporter가 초기화되지 않았다면 대기
     if (!transporter) {
         await initializeTransporter();
@@ -61,22 +68,18 @@ async function sendVerificationEmail(email, code) {
             </div>
         `
     };
-
     return transporter.sendMail(mailOptions);
 }
 
 // 인증 코드 생성 및 저장, 이메일 전송을 처리하는 통합 함수
-async function generateAndSendVerificationCode(userId, userEmail) {
+async function sendVerifyCode(email,UID) {
     try {
-        console.log(userId, userEmail)
-        // 인증 코드 생성
-        const emailCode = generateEmailCode();
+        const verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
         
         // Redis에 인증 코드 저장 (10분 유효)
-        await redisClient.setEx(`email_2fa:${userId}`, 600, emailCode);
-        
+        await redisClient.setEx(`verifyEmail:${UID}`, 600, verifyCode);
         // 사용자 이메일로 인증 코드 전송
-        await sendVerificationEmail(userEmail, emailCode);
+        await sendEmail(email, verifyCode);
         
         return {
             success: true,
@@ -93,10 +96,11 @@ async function generateAndSendVerificationCode(userId, userEmail) {
 }
 
 // 인증 코드 검증 함수
-async function verifyEmailCode(userId, code) {
+async function checkVerifyCode(UID, code) {
     try {
         // Redis에서 저장된 코드 조회
-        const storedCode = await redisClient.get(`email_2fa:${userId}`);
+        const storedCode = await redisClient.get(`verifyEmail:${UID}`);
+        console.log(storedCode)
         
         // 코드가 없거나 일치하지 않으면 실패
         if (!storedCode || storedCode !== code) {
@@ -105,10 +109,6 @@ async function verifyEmailCode(userId, code) {
                 message: '인증 코드가 올바르지 않습니다.'
             };
         }
-        
-        // 코드 검증 성공 시 Redis에서 코드 삭제
-        await redisClient.del(`email_2fa:${userId}`);
-        
         return {
             success: true,
             message: '인증이 완료되었습니다.'
@@ -124,8 +124,8 @@ async function verifyEmailCode(userId, code) {
 }
 
 module.exports = {
-    generateEmailCode,
-    sendVerificationEmail,
-    generateAndSendVerificationCode,
-    verifyEmailCode
+    // generateEmailCode,
+    sendEmail,
+    sendVerifyCode,
+    checkVerifyCode
 };
