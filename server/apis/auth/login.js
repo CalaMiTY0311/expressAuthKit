@@ -47,16 +47,7 @@ login.post('/login', againLoginCheck,
                 const { user } = result;
                 if (user.totpEnable == false) {
                     await setSession(res, user._id); 
-                    
-                    res.status(200).json({
-                        status: 'success',
-                        message: '로그인에 성공했습니다.',
-                        user: {
-                            UID: user._id,
-                            email: user.email
-                            // 필요한 사용자 정보 추가
-                        }
-                    });
+                    res.status(result.status).json(result.data);
                 } else {
                     const UID = user._id;
                     const email = user.email;
@@ -64,10 +55,7 @@ login.post('/login', againLoginCheck,
                     const emailAuthResult = await totpEmail.sendVerifyCode(email, UID);
 
                     if (!emailAuthResult.success) {
-                        return res.status(500).json({
-                            status: 'error',
-                            message: emailAuthResult.message
-                        });
+                        return res.status(result.status).json(result.data);
                     }
                     
                     res.status(200).json({
