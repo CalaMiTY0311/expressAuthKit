@@ -3,8 +3,10 @@ const register = express.Router();
 const AuthController = require('./authController'); 
 const { againLoginCheck } = require('../Middleware');
 const { body, validationResult } = require('express-validator');
+const { redisClient } = require("../dependencie");
+const { v4: uuidv4 } = require('uuid');
 
-async function setSession(UID) {
+async function setSession(res,UID) {
     const SID = uuidv4();
     res.cookie('SID', SID, {
         httpOnly: true,      // 브라우저 접근 제한
@@ -33,8 +35,8 @@ register.post('/register', againLoginCheck,
     }
     // console.log(req)
     const result = await AuthController.register(req);
-    if (result.status === 200){
-        setSession(result.data.user._id)
+    if (result.status === 201){
+        setSession(res,result.data.user._id)
     }
     res.status(result.status).json(result.data);
 });

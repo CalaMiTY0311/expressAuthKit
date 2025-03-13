@@ -15,6 +15,7 @@ class AuthController {
     static async register(req) {
         const { email, password } = req.body
         try {
+            
             const existingUser = await mongo.selectDB({ email });
             if (existingUser.length > 0) {
                 return { 
