@@ -9,6 +9,8 @@ server/rootca.crt
 server/rootca.csr
 server/rootca.key
 
+server/test.md
+
 # Redis
 redisData/
 
