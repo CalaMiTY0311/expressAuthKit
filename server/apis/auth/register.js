@@ -26,14 +26,16 @@ async function setSession(res,UID) {
 
 register.post('/register', againLoginCheck, 
     [
-        // body('email').isEmail().normalizeEmail().withMessage('유효한 이메일을 입력하세요'),
+        body('email').isEmail().normalizeEmail().withMessage('유효한 이메일을 입력하세요'),
         body('password').isLength({ min: 8 }).withMessage('비밀번호는 최소 8자 이상이어야 합니다')
     ], async (req, res) => {
+        // 이메일 패스워드 유효성 검사
         const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json({data:{msg:errors.errors[0].msg}});
     }
-    // console.log(req)
+
+    // 회원가입 로직 실행 
     const result = await AuthController.register(req);
     if (result.status === 201){
         setSession(res,result.data.user._id)

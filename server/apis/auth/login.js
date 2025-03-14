@@ -32,43 +32,39 @@ async function setSession(res, UID) {
 
 login.post('/login', againLoginCheck,
     async (req, res) => {
-        try {
-            // 입력 유효성 검사
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) {
-                return res.status(400).json({ errors: errors.array() });
-            }
-            
-            const result = await AuthController.login(req);
+        const result = await AuthController.login(req);        
             const {status, data} = result;
 
             // 2차 인증 여부확인
-            if (status == 200) {
+            if (status === 200) {
                 if (data.user.totpEnable === false) {
-                    await setSession(res,data.user.UID); 
+                    await setSession(res, data.user.UID); 
                     res.status(status).json(data);
                 } else {
-                    const UID = data.user.UID;
-                    const email = data.user.email
-                    const emailAuthResult = await totpEmail.sendVerifyCode(email, UID);
-
-                    if (!emailAuthResult.success) {
-                        return res.status(result.status).json(result.data);
+                    try {
+                        // email로 인증 코드 보내는 함수
+                        const UID = data.user.UID;
+                        const email = data.user.email;
+                        const emailAuthResult = await totpEmail.sendVerifyCode(email, UID);
+            
+                        if (!emailAuthResult.success) {
+                            return res.status(500).json({ 
+                                msg: "인증 코드 전송에 실패했습니다." 
+                            });
+                        }
+                        // 2FA 필요 상태를 클라이언트에 알림
+                        res.status(status).json(data);
+                    } catch (error) {
+                        console.error('이메일 인증 코드 전송 오류:', error);
+                        return res.status(500).json({ 
+                            msg: "인증 코드 전송 중 오류가 발생했습니다." 
+                        });
                     }
-                    res.status(status).json(data);
                 }
             } else {
-                return res.status(status).json(data.msg)
+                return res.status(status).json(data);
             }
-        } catch (error) {
-            console.error('로그인 오류:', error);
-            res.status(500).json({ 
-                status: 'error',
-                message: '인증 처리 중 오류가 발생했습니다.'
-            });
-        }
-    }
-);
+});
 
 login.post('/verifyEmail', [
     body('code').isLength({ min: 6, max: 6 }).isNumeric().withMessage('유효한 6자리 인증 코드를 입력하세요')

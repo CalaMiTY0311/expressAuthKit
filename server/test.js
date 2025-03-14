@@ -7,67 +7,81 @@ const { mongo, redisClient } = require('./apis/dependencie')
 
 describe('사용자 인증 테스트', () => {
   
-  const context = {
-    user: {
+  let SID;
+  
+  const test_user = {
       email: 'test@example.com',
       password: 'Password123!'
-    },
-    responses: {}
-  };
+    }
+
   
     // 테스트 후 정리
     afterAll(async () => {
       // 테스트 후 생성된 테스트 사용자 삭제
-      await mongo.deleteDB({ email: context.user.email });
+      await mongo.deleteDB({ email: 'test@example.com' });
     });
   
     // 회원가입 테스트
     describe('사용자 인증 테스트', () => {
         test('1. 회원 가입', async () => {
-          //register 엔드포인트로 테스트계정으로 로그인
-          context.responses.register = await request(app)
-      .post('/auth/register')
-      .send(context.user);
+          const registerTest = async (email, password, statusCode) => { // statusCode <= 예상 스테이터스 코드
+            const response = await request(app)
+                .post('/auth/register')
+                .send({ email, password });
+            expect(response.status).toBe(statusCode); // response.status의 코드와 statusCode 예상 스테이터스 코드가 같으면 테스트 통과
+            // console.log(response.header)
+            return response;
+        };
       
-      console.log(context)
-      const setCookieHeader = context.responses.register.headers['set-cookie'];
+      // 정상 회원가입 
+      const response = await registerTest(test_user.email, test_user.password, 201);
+      // 정상 회원가입 시 쿠키에 세션값 확인 및 레디스에 세션이 존재하는지 확인
+      const setCookieHeader = response.headers['set-cookie'];
       const sidCookie = setCookieHeader.find(cookie => cookie.startsWith('SID='));
-      const SID = sidCookie && sidCookie.split('=')[1].split(';')[0];  // SID 값을 추출
-
-      // 세션값이 레디스에 존재하는지 검사
+      const SID = sidCookie && sidCookie.split('=')[1].split(';')[0];
       const checkSID = await redisClient.get(`session:${SID}`);
-      // const checkSID = await redisClient.get(`session:"asdf"`);
-      // console.log(checkSID)
-      expect(checkSID).toBeTruthy();
+      expect(checkSID).toBeTruthy();   // 세션값이 null이 아니면 통과
 
-        // 회원가입 후 사용자가 데이터베이스에 존재하는지 확인
-        const users = await mongo.selectDB({ email: context.user.email });
+        // mongoDB 회원가입 후 사용자가 데이터베이스에 존재하는지 확인
+        const users = await mongo.selectDB({ email: test_user.email });
         expect(users.length).toBeGreaterThan(0);
-        const user = users[0];
-        expect(user.email).toEqual('test@example.com');
-        expect(context.responses.register.status).toBe(201);
 
-        // 동일 이메일로 회원가입 시 에러 테스트
-        context.responses.register = await request(app)
-      .post('/auth/register')
-      .send(context.user);
-        expect(context.responses.register.status).toEqual(409);
+        // 테스트 종료 전 레디스에 저장한 세션 제거
+        await registerTest(test_user.email, test_user.password, 409);
+
+        await redisClient.del(`session:${SID}`);
       });
 
-      // test('2. 로그인 테스트', async () => {
-      //   // 로그인 유효성 검사
-      //   wrong_req = {
-      //     body: {
-      //       email: 'test@example.com',
-      //       password: 'Password123!1'
-      //     }
-      //   };
-      //   let result = await AuthController.login(wrong_req);
-      //   expect(result.status).toEqual(401);
+      test('2. 로그인 테스트', async () => {
 
-      //   // 로그인 검사
-      //   result = await AuthController.login(req);
+        const loginTest = async (email, password, expectedStatus) => {
+          const response = await request(app)
+              .post('/auth/login')
+              .send({ email, password });
+          expect(response.status).toBe(expectedStatus);
+          // console.log(response.header)
+          return response;
+      };
 
-      // });
+      // 잘못된 이메일로 로그인 시도
+    await loginTest('wrong@example.com', 'Password123', 401);
+
+    // 잘못된 비밀번호로 로그인 시도
+    await loginTest('test@example.com', 'WrongPassword123', 401);
+
+    // 정상 로그인 시도
+    const response = await loginTest('test@example.com', 'Password123!', 200, '비밀번호가 일치하지 않습니다.');
+    // 세션 체크
+      const setCookieHeader = response.headers['set-cookie'];
+      const sidCookie = setCookieHeader.find(cookie => cookie.startsWith('SID='));
+      const SID = sidCookie && sidCookie.split('=')[1].split(';')[0];  // SID 값을 추출
+      const checkSID = await redisClient.get(`session:${SID}`);
+      expect(checkSID).toBeTruthy();
+      });
     });
+
+    test('3. ', async () => {
+      
+    })
+
   });

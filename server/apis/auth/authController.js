@@ -15,7 +15,7 @@ class AuthController {
     static async register(req) {
         const { email, password } = req.body
         try {
-            
+            //이미 가입된 유저인지 이메일 매칭 검사
             const existingUser = await mongo.selectDB({ email });
             if (existingUser.length > 0) {
                 return { 
@@ -25,7 +25,6 @@ class AuthController {
                     }
                 }
             }
-    
             // 몽고DB nanoid 중복 값 충돌 방지
             let _id;
             let flag = false;
@@ -36,7 +35,6 @@ class AuthController {
                     flag = true;
                 }
             }
-    
             // src/util/dbSchema를 사용해 db 유저 필드 생성
             const newUser = {};
             for (const field of userFields) {
@@ -76,8 +74,8 @@ class AuthController {
         const { email, password } = req.body;
         try {
             const user = await mongo.selectDB({ email });
-            
-            if (user.length === 0) {
+
+            if (user.length === 0 || !(await bcrypt.compare(password, user[0].password))) {
                 return { 
                     status: 401, 
                     data: {
@@ -93,16 +91,7 @@ class AuthController {
                     }
                 }
             }
-            
-            const isPasswordValid = await bcrypt.compare(password, user[0].password);
-            if (!isPasswordValid) {
-                return { 
-                    status: 401, 
-                    data: {
-                        msg: "비밀번호가 일치하지 않습니다." 
-                    }
-                };
-            }
+
             return {
                 status: 200,
                 data: {
