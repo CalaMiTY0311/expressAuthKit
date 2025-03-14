@@ -15,6 +15,7 @@ class AuthController {
     static async register(req) {
         const { email, password } = req.body
         try {
+
             //이미 가입된 유저인지 이메일 매칭 검사
             const existingUser = await mongo.selectDB({ email });
             if (existingUser.length > 0) {
@@ -25,6 +26,7 @@ class AuthController {
                     }
                 }
             }
+
             // 몽고DB nanoid 중복 값 충돌 방지
             let _id;
             let flag = false;
@@ -49,7 +51,8 @@ class AuthController {
             newUser._id = _id;
             const hashedPassword = await bcrypt.hash(password, 10);
             newUser.password = hashedPassword;
-    
+
+            // 스키마 설정 후 mongoDB에 저장
             await mongo.insertDB(newUser);
     
             return {
@@ -59,12 +62,12 @@ class AuthController {
                     user: newUser
                 }
             }
-        } catch (error) {
-            console.error(error);
+        } catch (registerError) {
+            console.error(registerError);
             return {
                 status: 500,
                 data: {
-                    msg: `어스 서버 에러발생 : ${error}`
+                    msg: `어스 서버 회원 가입 에러발생 : ${registerError}`
                 }
             };
         }
@@ -121,11 +124,21 @@ class AuthController {
     static async logout(req) {
         try {
             const SID = req.cookies.SID;
-            return {
-                status: 200,
+
+            if (!SID) {
+                return {
+                status: 400,
                 data: {
-                    msg: "로그아웃 완료",
-                    SID: SID
+                    msg: "세션 ID가 존재하지 않습니다.",
+                }
+            } 
+        }else {
+                return {
+                    status: 200,
+                    data: {
+                        msg: "로그아웃 완료",
+                        SID: SID
+                    }
                 }
             }
         } catch (error) {

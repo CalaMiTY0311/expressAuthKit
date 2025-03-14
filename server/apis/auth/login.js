@@ -36,15 +36,15 @@ login.post('/login', againLoginCheck,
             const {status, data} = result;
 
             // 2차 인증 여부확인
-            if (status === 200) {
-                if (data.user.totpEnable === false) {
-                    await setSession(res, data.user.UID); 
-                    res.status(status).json(data);
+            if (result.status === 200) {
+                if (result.data.user.totpEnable === false) {
+                    await setSession(res, result.data.user.UID); 
+                    res.status(result.status).json(result.data);
                 } else {
                     try {
                         // email로 인증 코드 보내는 함수
-                        const UID = data.user.UID;
-                        const email = data.user.email;
+                        const UID = result.data.user.UID;
+                        const email = result.data.user.email;
                         const emailAuthResult = await totpEmail.sendVerifyCode(email, UID);
             
                         if (!emailAuthResult.success) {
@@ -53,7 +53,7 @@ login.post('/login', againLoginCheck,
                             });
                         }
                         // 2FA 필요 상태를 클라이언트에 알림
-                        res.status(status).json(data);
+                        res.status(result.status).json(result.data);
                     } catch (error) {
                         console.error('이메일 인증 코드 전송 오류:', error);
                         return res.status(500).json({ 
@@ -62,7 +62,7 @@ login.post('/login', againLoginCheck,
                     }
                 }
             } else {
-                return res.status(status).json(data);
+                return res.status(result.status).json(result.data);
             }
 });
 

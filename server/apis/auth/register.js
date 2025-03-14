@@ -37,9 +37,11 @@ register.post('/register', againLoginCheck,
 
     // 회원가입 로직 실행 
     const result = await AuthController.register(req);
+    // 회원가입 로직 성공 시 세션 값 설정
     if (result.status === 201){
         setSession(res,result.data.user._id)
     }
+
     res.status(result.status).json(result.data);
 });
 
