@@ -10,7 +10,7 @@ const { body, validationResult } = require('express-validator');
 
 const totpEmail = require('./totpEmail');
 
-const { againLoginCheck } = require("../Middleware")
+const { blockAgainLogin } = require("../Middleware")
 
 async function setSession(res, UID) {
     const SID = uuidv4();
@@ -18,7 +18,7 @@ async function setSession(res, UID) {
         httpOnly: true,      // 브라우저 접근 제한
         // sameSite: 'None',    // 서로 다른 도메인에서도 쿠키 전달 허용
         secure: true,       // HTTP 환경에서 작동하도록 설정
-        maxAge: 36000 * 1000,
+        maxAge: 3600 * 1000,
     });
     
     res.cookie('UID', UID, {
@@ -27,10 +27,9 @@ async function setSession(res, UID) {
         maxAge: 36000 * 1000,
     });
     await redisClient.setEx(`session:${SID}`, 3600, JSON.stringify({ UID: UID }));
-    return
 }
 
-login.post('/login', againLoginCheck,
+login.post('/login', blockAgainLogin,
     async (req, res) => {
         const result = await AuthController.login(req);        
             const {status, data} = result;

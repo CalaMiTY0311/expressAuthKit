@@ -8,7 +8,6 @@ const { sessionCheck } = require("../Middleware")
 
 logout.post('/logout',sessionCheck, async (req, res) => {
     const result = await AuthController.logout(req);
-    const {status, data} = result;
     if (result.status===200){
         const SID = result.data.SID;
             try {

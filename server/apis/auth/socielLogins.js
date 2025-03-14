@@ -5,7 +5,7 @@ const AuthController = require('./authController');
 const { mongo, redisClient } = require("../dependencie");
 const {userSchema, userFields} = require("../../src/util/dbSchema")
 
-const { againLoginCheck } = require("../Middleware")
+const { blockAgainLogin } = require("../Middleware")
 
 const { StatusCodes } = require('http-status-codes');
 const { google } = require('googleapis');
@@ -17,7 +17,7 @@ const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URL;
 function getOauth2Client() {
   return new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
 }
-socielLogins.get('/googleLogin', againLoginCheck, (req, res) => {
+socielLogins.get('/googleLogin', blockAgainLogin, (req, res) => {
   try {
     const oauth2Client = getOauth2Client();
     const url = oauth2Client.generateAuthUrl({
