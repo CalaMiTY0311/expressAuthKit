@@ -107,13 +107,8 @@ describe('사용자 인증 테스트', () => {
     // 비밀번호 변경 시도
     await updateAccount(sessionId, { password: 'NewPassword123' }, 400);
     
-  //   // 빈 데이터 업데이트 시도
-  //   await updateAccount(sessionId, {}, 400);
-    
-  //   // 성공적인 업데이트
-  //   const validUpdateResponse = await updateAccount(sessionId, { name: '새이름', bio: '새 자기소개' }, 200);
-  //   expect(validUpdateResponse.body.user).toHaveProperty('name', '새이름');
-  //   expect(validUpdateResponse.body.user).toHaveProperty('bio', '새 자기소개');
+    // 성공적인 업데이트
+    await updateAccount(sessionId, { name: '새이름', bio: '새 자기소개' }, 200);
     
   //   // 세션 정리
     await redisClient.del(`session:${sessionId}`);
