@@ -30,10 +30,11 @@ register.post('/register', blockAgainLogin,
         body('password').isLength({ min: 8 }).withMessage('비밀번호는 최소 8자 이상이어야 합니다')
     ], async (req, res) => {
 
+        console.log("asd")
         // 이메일 패스워드 유효성 검사
         const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({data:{msg:errors.errors[0].msg}});
+        return res.status(400).json({msg:errors.errors[0].msg});
     }
 
     // 회원가입 로직 실행 

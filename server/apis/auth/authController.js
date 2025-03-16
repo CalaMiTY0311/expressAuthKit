@@ -67,7 +67,7 @@ class AuthController {
             return {
                 status: 500,
                 data: {
-                    msg: `어스 서버 회원 가입 에러발생 : ${registerError}`
+                    msg: `어스 서버 회원 가입 에러`
                 }
             };
         }
@@ -154,6 +154,8 @@ class AuthController {
     
     static async updateAccount(req) {
         const updateData = req.body;
+        
+        // 데이터가 비어있는지 체크
         if (!updateData || Object.keys(updateData).length === 0) {
             return {
                 status: 400,
@@ -162,6 +164,21 @@ class AuthController {
                 }
             };
         }
+        
+        // 유효하지 않은 필드 체크
+        const validFields = Object.keys(userSchema);
+        const invalidFields = Object.keys(updateData).filter(field => !validFields.includes(field));
+        
+        if (invalidFields.length > 0) {
+            return {
+                status: 422,
+                data: {
+                    msg: `유효하지 않은 필드가 있습니다: ${invalidFields.join(', ')}`
+                }
+            };
+        }
+        
+        // 비밀번호 변경 체크
         if (updateData.password !== undefined) {
             return {
                 status: 400,
@@ -170,8 +187,11 @@ class AuthController {
                 }
             };
         }
+        
         try {
             const _id = req.cookies.UID;
+            
+            // 사용자 존재 여부 체크
             const user = await mongo.selectDB({ _id });
             if (!user) {
                 return {
@@ -181,6 +201,8 @@ class AuthController {
                     }
                 };
             } 
+            
+            // DB 업데이트
             const updatedUser = await mongo.updateDB({ _id }, updateData);
             return {
                 status: 200,
@@ -190,10 +212,11 @@ class AuthController {
                 }
             };
         } catch (error) {
+            console.error("계정 업데이트 중 오류 발생:", error);
             return {
                 status: 500,
                 data: {
-                    msg: `계정 업데이트 에러: ${error}`
+                    msg: "계정 업데이트 중 서버 오류가 발생했습니다."
                 }
             };
         }

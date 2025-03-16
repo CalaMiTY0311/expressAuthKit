@@ -7,7 +7,7 @@ const {sessionCheck} = require("../Middleware");
 
 accountOptions.put('/updateAccount', sessionCheck, async(req,res)=>{
     const result = await AuthController.updateAccount(req);
-    res.status(result.status).json(result.msg)
+    res.status(result.status).json(result.data)
 })
 
 // 비밀번호 변경 시 추가 인증로직은 필요 시 구현해야함

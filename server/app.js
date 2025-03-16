@@ -94,6 +94,7 @@ app.get('/api/greet', (req, res) => {
 // Create an HTTP server.
 http.createServer(app).listen(HTTP_PORT);
 
+console.log(HTTP_PORT)
 // Create an HTTPS server.
 https.createServer(options, app).listen(HTTPS_PORT);
 
