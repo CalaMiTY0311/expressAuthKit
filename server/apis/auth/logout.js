@@ -1,12 +1,11 @@
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
 const logout = express.Router();
 const AuthController = require('./authController'); 
 const { redisClient } = require("../dependencie");
 
-const { sessionCheck } = require("../Middleware")
+const { verifySession } = require("../Middleware")
 
-logout.post('/logout',sessionCheck, async (req, res) => {
+logout.post('/logout',verifySession, async (req, res) => {
     const result = await AuthController.logout(req);
     if (result.status===200){
         const SID = result.data.SID;

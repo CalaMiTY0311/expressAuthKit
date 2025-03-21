@@ -77,15 +77,21 @@ class AuthController {
         const { email, password } = req.body;
         try {
             const user = await mongo.selectDB({ email });
-
-            if (user.length === 0 || !(await bcrypt.compare(password, user[0].password))) {
+            // 사용자가 없는 경우 조기 반환
+            if (user.length === 0) {
                 return { 
                     status: 401, 
-                    data: {
-                        msg: "존재하지 않는 유저입니다."
-                    }
+                    data: { msg: "존재하지 않는 유저입니다." }
                 };
             }
+            const isPasswordValid = await bcrypt.compare(password, user[0].password);
+            if (!isPasswordValid) {
+                return { 
+                    status: 401, 
+                    data: { msg: "비밀번호가 일치하지 않습니다." }
+                };
+            }
+            
             if (user[0].provider !== "local"){
                 return {
                     status: 400,
@@ -105,7 +111,6 @@ class AuthController {
                         username: user[0].username,
                         bio: user[0].bio,
                         profilePicURL: user[0].profilePicURL,
-                        totpSecret: user[0].totpSecret,
                         totpEnable: user[0].totpEnable
                     }
                 }
@@ -165,10 +170,34 @@ class AuthController {
             };
         }
         
+        // // 유효하지 않은 필드 체크
+        // const validFields = Object.keys(userSchema);
+        // const invalidFields = Object.keys(updateData).filter(field => !validFields.includes(field));
+        
+        // if (invalidFields.length > 0) {
+        //     return {
+        //         status: 422,
+        //         data: {
+        //             msg: `유효하지 않은 필드가 있습니다: ${invalidFields.join(', ')}`
+        //         }
+        //     };
+        // }
+        
+        // // 비밀번호 변경 체크
+        // if (updateData.password !== undefined) {
+        //     return {
+        //         status: 400,
+        //         data: {
+        //             msg: "비밀번호는 이 경로에서 변경할 수 없습니다."
+        //         }
+        //     };
+        // }
+
         // 유효하지 않은 필드 체크
         const validFields = Object.keys(userSchema);
-        const invalidFields = Object.keys(updateData).filter(field => !validFields.includes(field));
         
+        // 유효하지 않은 필드 체크
+        const invalidFields = Object.keys(updateData).filter(field => !validFields.includes(field));
         if (invalidFields.length > 0) {
             return {
                 status: 422,
@@ -177,13 +206,15 @@ class AuthController {
                 }
             };
         }
-        
-        // 비밀번호 변경 체크
-        if (updateData.password !== undefined) {
+
+        // 중요 필드 수정 방지
+        const sensitiveFields = ['_id', 'email', 'password', 'createdAt', 'provider'];
+        const protectedFieldAttempt = Object.keys(updateData).filter(field => sensitiveFields.includes(field));
+        if (protectedFieldAttempt.length > 0) {
             return {
-                status: 400,
+                status: 403,
                 data: {
-                    msg: "비밀번호는 이 경로에서 변경할 수 없습니다."
+                    msg: `보호된 필드는 이 경로에서 수정할 수 없습니다: ${protectedFieldAttempt.join(', ')}`
                 }
             };
         }
@@ -222,6 +253,10 @@ class AuthController {
         }
     }
     
+    // 아래 추가로 구현 할만한 리스트
+    // 1. 복잡성 구현(패스워드 대소문자 또는 특수문자포함 체크)
+    // 2. 현재 비밀번호와 새 비밀번호를 받아 패스워드를 변경하는 로직
+    // 2-1. 새 비밀번호가 기존에 설정되었던 패스워드와 일치하는지 확인하는 로직
     static async changePassword(req) {
         const { password } = req.body;
         if (!password) {
@@ -241,7 +276,7 @@ class AuthController {
             };
         }
         try {
-            const { _id } = req.cookies.UID;
+            const _id = req.cookies.UID;
             const user = await mongo.selectDB({ _id });
             if (!user) {
                 return {

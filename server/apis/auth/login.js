@@ -32,8 +32,7 @@ async function setSession(res, UID) {
 login.post('/login', blockAgainLogin,
     async (req, res) => {
         const result = await AuthController.login(req);        
-            const {status, data} = result;
-
+        
             // 2차 인증 여부확인
             if (result.status === 200) {
                 if (result.data.user.totpEnable === false) {

@@ -25,14 +25,15 @@ const blockAgainLogin = async (req, res, next) => {
     }
 }
 
-const sessionCheck = async (req, res, next) => {
+const verifySession = async (req, res, next) => {
     const SID = req.cookies.SID;
 
     if (SID) {
         try {
             const flag = await redisClient.get(`session:${SID}`);
+            console.log("flag : ",flag)
             if (!flag) {
-                return res.status(403).json({ msg : "로그아웃 상태 입니다." });
+                return res.status(401).json({ msg : "로그아웃 상태 입니다." });
             } else {
                 next();
             }
@@ -40,11 +41,11 @@ const sessionCheck = async (req, res, next) => {
             console.error("Session Check middleware error:", error);
         }
     } else {
-        return res.status(403).json({ msg : "로그아웃 상태 입니다." });
+        return res.status(401).json({ msg : "로그아웃 상태 입니다." });
     }
 };
 
 
-module.exports = {blockAgainLogin, sessionCheck}
+module.exports = {blockAgainLogin, verifySession}
 
-// verifySession
+// 사용자가 로그인 후 악의적인 UID변경으로 다른 사용자로부터 간섭문제를 해결해야함 
