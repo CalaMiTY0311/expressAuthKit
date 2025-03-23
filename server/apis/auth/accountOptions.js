@@ -2,6 +2,7 @@ const express = require('express');
 const accountOptions = express.Router();
 const AuthController = require('./authController'); 
 const { redisClient } = require("../dependencie");
+const { body, validationResult } = require('express-validator');
 
 const {verifySession} = require("../Middleware");
 
@@ -11,9 +12,13 @@ accountOptions.put('/updateAccount', verifySession, async(req,res)=>{
 })
 
 // 비밀번호 변경 시 추가 인증로직은 필요 시 구현해야함
-accountOptions.post('/changePassword', verifySession, async(req,res)=>{
+accountOptions.post('/changePassword', verifySession, 
+    [
+        body('password').isLength({ min: 8 }).withMessage('비밀번호는 최소 8자 이상이어야 합니다')
+    ],  async(req,res)=>{
     const result = await AuthController.changePassword(req);
-    res.status(result.status).json(result.msg)
+    console.log(result)
+    res.status(result.status).json(result.data)
 })
 
 // 유저 회원 탈퇴 시 추가 인증로직은 필요 시 따로 구현해야함

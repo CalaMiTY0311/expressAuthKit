@@ -35,7 +35,7 @@ if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
             console.error('이메일 트랜스포터 초기화 오류:', err);
         }
     }
-    
+
     // 초기화 함수 호출
     initializeTestTransporter();
 }
@@ -51,7 +51,7 @@ async function sendEmail(email, code) {
     if (!transporter) {
         await initializeTransporter();
     }
-    
+
     const mailOptions = {
         from: process.env.EMAIL_USER || (testAccount ? testAccount.user : 'OracleMemory2@gmail.com'),
         to: email,
@@ -72,15 +72,15 @@ async function sendEmail(email, code) {
 }
 
 // 인증 코드 생성 및 저장, 이메일 전송을 처리하는 통합 함수
-async function sendVerifyCode(email,UID) {
+async function sendVerifyCode(email, UID) {
     try {
         const verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
-        
+
         // Redis에 인증 코드 저장 (10분 유효)
         await redisClient.setEx(`verifyEmail:${UID}`, 600, verifyCode);
         // 사용자 이메일로 인증 코드 전송
         await sendEmail(email, verifyCode);
-        
+
         return {
             success: true,
             message: '인증 코드가 이메일로 전송되었습니다.'
@@ -101,7 +101,7 @@ async function checkVerifyCode(UID, code) {
         // Redis에서 저장된 코드 조회
         const storedCode = await redisClient.get(`verifyEmail:${UID}`);
         console.log(storedCode)
-        
+
         // 코드가 없거나 일치하지 않으면 실패
         if (!storedCode || storedCode !== code) {
             return {

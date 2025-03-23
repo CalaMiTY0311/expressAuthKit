@@ -20,7 +20,7 @@ async function setSession(res, UID) {
         secure: true,       // HTTP 환경에서 작동하도록 설정
         maxAge: 3600 * 1000,
     });
-    
+
     res.cookie('UID', UID, {
         httpOnly: true,
         secure: true,
@@ -31,38 +31,38 @@ async function setSession(res, UID) {
 
 login.post('/login', blockAgainLogin,
     async (req, res) => {
-        const result = await AuthController.login(req);        
-        
-            // 2차 인증 여부확인
-            if (result.status === 200) {
-                if (result.data.user.totpEnable === false) {
-                    await setSession(res, result.data.user.UID); 
-                    res.status(result.status).json(result.data);
-                } else {
-                    try {
-                        // email로 인증 코드 보내는 함수
-                        const UID = result.data.user.UID;
-                        const email = result.data.user.email;
-                        const emailAuthResult = await totpEmail.sendVerifyCode(email, UID);
-            
-                        if (!emailAuthResult.success) {
-                            return res.status(500).json({ 
-                                msg: "인증 코드 전송에 실패했습니다." 
-                            });
-                        }
-                        // 2FA 필요 상태를 클라이언트에 알림
-                        res.status(result.status).json(result.data);
-                    } catch (error) {
-                        console.error('이메일 인증 코드 전송 오류:', error);
-                        return res.status(500).json({ 
-                            msg: "인증 코드 전송 중 오류가 발생했습니다." 
+        const result = await AuthController.login(req);
+
+        // 2차 인증 여부확인
+        if (result.status === 200) {
+            if (result.data.user.totpEnable === false) {
+                await setSession(res, result.data.user.UID);
+                res.status(result.status).json(result.data);
+            } else {
+                try {
+                    // email로 인증 코드 보내는 함수
+                    const UID = result.data.user.UID;
+                    const email = result.data.user.email;
+                    const emailAuthResult = await totpEmail.sendVerifyCode(email, UID);
+
+                    if (!emailAuthResult.success) {
+                        return res.status(500).json({
+                            msg: "어스 서버 로그인 에러 발생"
                         });
                     }
+                    // 2FA 필요 상태를 클라이언트에 알림
+                    res.status(result.status).json(result.data);
+                } catch (error) {
+                    console.error('이메일 인증 코드 전송 오류:', error);
+                    return res.status(500).json({
+                        msg: "인증 코드 전송 중 오류가 발생했습니다."
+                    });
                 }
-            } else {
-                return res.status(result.status).json(result.data);
             }
-});
+        } else {
+            return res.status(result.status).json(result.data);
+        }
+    });
 
 login.post('/verifyEmail', [
     body('code').isLength({ min: 6, max: 6 }).isNumeric().withMessage('유효한 6자리 인증 코드를 입력하세요')
@@ -71,9 +71,9 @@ login.post('/verifyEmail', [
         // 입력 유효성 검사
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 status: 'error',
-                errors: errors.array() 
+                errors: errors.array()
             });
         }
         const { code } = req.body;
