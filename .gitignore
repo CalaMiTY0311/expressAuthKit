@@ -8,6 +8,7 @@ server/package-lock.json
 server/rootca.crt
 server/rootca.csr
 server/rootca.key
+server/killPort.sh
 
 server/test.md
 

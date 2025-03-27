@@ -1,11 +1,6 @@
 version: '3.8'
 
 services:
-  # express-server:
-  #   image: sessionpractice:latest
-  #   container_name: express-server
-  #   ports:
-  #     - "3010:3010"
 
   portainer:
     image: portainer/portainer-ce:latest

@@ -2,14 +2,13 @@ const bcrypt = require('bcrypt');
 const ControlMongo = require('../../src/util/mongoDB');
 // const redisClient = require('../config/redis'); // Redis 연결 파일
 const { userSchema, userFields } = require("../../src/util/dbSchema");
-const { mongo, redisClient } = require("../dependencie")
+const { mongo } = require("../dependencie")
 const { nanoid } = require('nanoid');
 
 class AuthController {
 
     constructor(mongo, redisClient) {
         this.mongo = mongo;
-        this.redisClient = redisClient;
     }
 
     static async register(req) {

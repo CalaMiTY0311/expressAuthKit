@@ -41,7 +41,29 @@ const verifySession = async (req, res, next) => {
     }
 };
 
+const verifyUid = async (req, res, next) => {
+    const UID = req.cookies.UID
+    const SID = req.cookies.SID
 
-module.exports = {blockAgainLogin, verifySession}
+    if (!UID) {
+        return res.status(401).json({ msg: "유효하지 않은 사용자 정보입니다." });
+    }
+
+    try {
+        const flag = await redisClient.get(`session:${SID}`);
+        const flagJson = JSON.parse(flag);
+        if (UID === flagJson.UID) {
+                next();
+        } else {
+            return res.status(401).json({ msg: "유효하지 않은 사용자 정보입니다." });
+        }
+    }  catch(error) {
+        console.error("UID verification middleware error:", error);
+        return res.status(500).json({msg:"어스 서버 미들웨어 에러"});
+    }
+
+}
+
+module.exports = {blockAgainLogin, verifySession, verifyUid}
 
 // 사용자가 로그인 후 악의적인 UID변경으로 다른 사용자로부터 간섭문제를 해결해야함 

@@ -27,6 +27,7 @@
 - **쿠키 설정**: 
   - `SID`: 세션 ID (HttpOnly, Secure)
   - `UID`: 사용자 ID (HttpOnly, Secure)
+- **참고**:`개발 환경에서 작동하는 쿠키 설정으로 배포버전에서는 그에 맞게 설정해야함`
 
 ```json
 {

@@ -7,22 +7,25 @@ const REDIS_PORT = process.env.REDIS_PORT || 6379;  // 기본값: 6379
 
 // ✅ MongoDB 연결 설
 const mongo = new ControlMongo('Server', 'Users');
+const testmongo = new ControlMongo('Server', 'testUsers')
+
+console.log(REDIS_URL)
+console.log(REDIS_PORT)
 
 const redisClient = createClient({
-    // url: `redis://${REDIS_URL}:${REDIS_PORT}`
-    url: `redis://localhost:${REDIS_PORT}`
+    url: `redis://${REDIS_URL}:${REDIS_PORT}`  // 서비스 이름과 포트 사용
 });
 
 redisClient.on('connect', () => console.log(`✅ Redis connected to Port : ${REDIS_PORT}`));
-redisClient.on('error', (err) => console.error('❌ Redis connection error:', err));
+redisClient.on('error', (err) => {
+    console.error('❌ Redis connection error:', err);
+    // 심각한 오류 발생 시 프로세스 종료
 
-async function connectRedis() {
-    await redisClient.connect();
-}
-
-connectRedis().catch(err => console.error("❌ Redis connection failed:", err));
+    process.exit(1);
+});
 
 module.exports = {
     mongo,
+    testmongo,
     redisClient
 };

@@ -1,101 +1,180 @@
-// express 불러오기
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
-
-const registerRouter = require('./apis/auth/register')
-const loginRouter = require('./apis/auth/login')
-const logoutRouter = require('./apis/auth/logout')
+const cluster = require('cluster');
+const os = require('os');
+const http = require('http');
+const registerRouter = require('./apis/auth/register');
+const loginRouter = require('./apis/auth/login');
+const logoutRouter = require('./apis/auth/logout');
 const socielLogins = require('./apis/auth/socielLogins');
 const accountOptions = require('./apis/auth/accountOptions');
+const { redisClient } = require('./apis/dependencie');
 
-const { redisClient } = require('./apis/dependencie')
-
-const http = require('http');
-const https = require('https');
-const fs = require('fs');
-
-const HTTP_PORT = 8080;
+const HTTP_PORT = 5050;
 const HTTPS_PORT = 8443;
 
-const options = {
-  key: fs.readFileSync('./rootca.key'),
-  cert: fs.readFileSync('./rootca.crt')
-};
+    // 워커 프로세스 설정
+    const app = express();
 
-const app = express();
-app.use(cookieParser()); // 중복 선언 방지
-app.use(express.json());
+    app.use(cookieParser());
+    app.use(express.json());
+    app.use(cors({
+        origin: 'http://localhost:5173',
+        credentials: true
+    }));
 
-app.use(cors({
-    origin: 'http://localhost:5173', // React 앱의 주소를 명시 (예: http://localhost:3000)
-    // origin: 'https://calamity.netlify.app',
-    credentials: true
-}));
+    // 라우터 설정
+    app.use('/auth', registerRouter);
+    app.use('/auth', loginRouter);
+    app.use('/auth', logoutRouter);
+    app.use('/auth', socielLogins);
+    app.use('/auth', accountOptions);
 
-// 포트 정보
-// const port = 3000;
+    // 워커 프로세스 ID 표시 엔드포인트 추가
+    app.get('/', (req, res) => {
+        res.json({ 
+            message: `Server is running on port ${req.secure ? HTTPS_PORT : HTTP_PORT}`, 
+            workerId: process.pid 
+        });
+    });
+    app.get('/', async(req,res) => {
+      res.status(200).send("asdf")
+    })
 
-app.use('/auth', registerRouter);
-app.use('/auth', loginRouter);
-app.use('/auth', logoutRouter);
-app.use('/auth', socielLogins)
-app.use('/auth', accountOptions)
+    app.get('/reset-redis', async (req, res) => {
+        try {
+            await redisClient.flushAll();
+            console.log('Redis 데이터 초기화 완료!');
+            res.status(200).send('Redis 데이터 초기화 완료!');
+        } catch (error) {
+            console.error('Redis 초기화 중 오류 발생:', error);
+            res.status(500).send('Redis 초기화 오류');
+        }
+    });
 
-app.get('/', (req, res) => {
-  res.json({ message: `Server is running on port ${req.secure ? HTTPS_PORT : HTTP_PORT}` });
-});
+    app.get('/redis', async (req, res) => {
+        try {
+            const keys = await redisClient.keys('*');
+            const result = {};
 
-app.get('/reset-redis', async (req, res) => {
-  try {
-      // Redis 모든 데이터 초기화 (flushAll)
-      await redisClient.flushAll(); // 비동기 방식으로 수정
-      console.log('Redis 데이터 초기화 완료!');
-      res.status(200).send('Redis 데이터 초기화 완료!');
-  } catch (error) {
-      console.error('Redis 초기화 중 오류 발생:', error);
-      res.status(500).send('Redis 초기화 오류');
-  }
-});
+            for (const key of keys) {
+                const type = await redisClient.type(key);
+                
+                if (type === 'string') {
+                    result[key] = await redisClient.get(key);
+                } else if (type === 'set') {
+                    result[key] = await redisClient.sMembers(key);
+                } else {
+                    result[key] = `Unsupported type: ${type}`;
+                }
+            }
 
-app.get('/redis', async (req, res) => {
-  try {
-      const keys = await redisClient.keys('*'); // 모든 키 가져오기
-      const result = {};
+            res.json(result);
+        } catch (error) {
+            console.error('Redis 조회 중 오류 발생:', error);
+            res.status(500).json({ error: 'Redis 조회 중 오류 발생' });
+        }
+    });
 
-      for (const key of keys) {
-          const type = await redisClient.type(key); // 키의 타입 확인
+    http.createServer(app).listen(HTTP_PORT);
+  module.exports = app
+// // 클러스터 모드에서 마스터 프로세스 설정
+// if (cluster.isPrimary) {
+//     console.log(`Primary ${process.pid} is running`);
 
-          if (type === 'string') {
-              result[key] = await redisClient.get(key);
-          } else if (type === 'set') {
-              result[key] = await redisClient.sMembers(key);
-          } else {
-              result[key] = `Unsupported type: ${type}`;
-          }
-      }
+//     // CPU 코어 수만큼 워커 프로세스 생성
+//     const numCPUs = os.cpus().length;
+//     console.log(`Forking ${numCPUs} worker processes`);
 
-      res.json(result);
-  } catch (error) {
-      console.error('Redis 조회 중 오류 발생:', error);
-      res.status(500).json({ error: 'Redis 조회 중 오류 발생' });
-  }
-});
+//     for (let i = 0; i < numCPUs; i++) {
+//         cluster.fork();
+//     }
 
+//     // 워커 프로세스 종료 시 새로운 워커 생성
+//     cluster.on('exit', (worker, code, signal) => {
+//         console.log(`Worker ${worker.process.pid} died`);
+//         cluster.fork();
+//     });
 
-app.get('/api/greet', (req, res) => {
-    res.status(200).json({ message: 'Hello, world!' });
-  });
-// 서버 실행
-// app.listen(port, () => {
-//   console.log(`App running on port ${port}...`);
-// });
+// } else {
+//     // 워커 프로세스 설정
+//     const app = express();
 
-// Create an HTTP server.
-http.createServer(app).listen(HTTP_PORT);
+//     app.use(cookieParser());
+//     app.use(express.json());
+//     app.use(cors({
+//         origin: 'http://localhost:5173',
+//         credentials: true
+//     }));
 
-console.log(HTTP_PORT)
-// Create an HTTPS server.
-https.createServer(options, app).listen(HTTPS_PORT);
+//     // 라우터 설정
+//     app.use('/auth', registerRouter);
+//     app.use('/auth', loginRouter);
+//     app.use('/auth', logoutRouter);
+//     app.use('/auth', socielLogins);
+//     app.use('/auth', accountOptions);
 
-module.exports = app
+//     // 워커 프로세스 ID 표시 엔드포인트 추가
+//     app.get('/', (req, res) => {
+//         res.json({ 
+//             message: `Server is running on port ${req.secure ? HTTPS_PORT : HTTP_PORT}`, 
+//             workerId: process.pid 
+//         });
+//     });
+//     app.get('/', async(req,res) => {
+//       res.status(200).send("asdf")
+//     })
+
+//     app.get('/reset-redis', async (req, res) => {
+//         try {
+//             await redisClient.flushAll();
+//             console.log('Redis 데이터 초기화 완료!');
+//             res.status(200).send('Redis 데이터 초기화 완료!');
+//         } catch (error) {
+//             console.error('Redis 초기화 중 오류 발생:', error);
+//             res.status(500).send('Redis 초기화 오류');
+//         }
+//     });
+
+//     app.get('/redis', async (req, res) => {
+//         try {
+//             const keys = await redisClient.keys('*');
+//             const result = {};
+
+//             for (const key of keys) {
+//                 const type = await redisClient.type(key);
+                
+//                 if (type === 'string') {
+//                     result[key] = await redisClient.get(key);
+//                 } else if (type === 'set') {
+//                     result[key] = await redisClient.sMembers(key);
+//                 } else {
+//                     result[key] = `Unsupported type: ${type}`;
+//                 }
+//             }
+
+//             res.json(result);
+//         } catch (error) {
+//             console.error('Redis 조회 중 오류 발생:', error);
+//             res.status(500).json({ error: 'Redis 조회 중 오류 발생' });
+//         }
+//     });
+
+//     // HTTP 서버 생성
+//     const http = require('http');
+//     http.createServer(app).listen(HTTP_PORT, () => {
+//         console.log(`Worker ${process.pid} started on port ${HTTP_PORT}`);
+//     });
+
+//     // 선택적: HTTPS 서버 생성 (코멘트 해제 시 사용)
+//     // const https = require('https');
+//     // const fs = require('fs');
+//     // const options = {
+//     //     key: fs.readFileSync('./rootca.key'),
+//     //     cert: fs.readFileSync('./rootca.crt')
+//     // };
+//     // https.createServer(options, app).listen(HTTPS_PORT, () => {
+//     //     console.log(`Worker ${process.pid} started on HTTPS port ${HTTPS_PORT}`);
+//     // });
+// }
