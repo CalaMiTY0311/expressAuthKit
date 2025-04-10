@@ -7,7 +7,7 @@ const { nanoid } = require('nanoid');
 
 class AuthController {
 
-    constructor(mongo, redisClient) {
+    constructor(mongo) {
         this.mongo = mongo;
     }
 

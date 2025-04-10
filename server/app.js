@@ -11,11 +11,17 @@ const socielLogins = require('./apis/auth/socielLogins');
 const accountOptions = require('./apis/auth/accountOptions');
 const { redisClient } = require('./apis/dependencie');
 
+// 패스포트 설정
+const passport = require('passport');
+const passportConfig = require('./passport');
+
 const HTTP_PORT = 5050;
 const HTTPS_PORT = 8443;
 
     // 워커 프로세스 설정
     const app = express();
+    passportConfig();
+    
 
     app.use(cookieParser());
     app.use(express.json());
