@@ -105,7 +105,7 @@ class AuthController {
                 data: {
                     msg: "로그인 성공",
                     user: {
-                        UID: user[0]._id,
+                        _id: user[0]._id,
                         email: user[0].email,
                         username: user[0].username,
                         bio: user[0].bio,
@@ -125,27 +125,27 @@ class AuthController {
         }
     }
 
-    static async logout(req) {
-        try {
-            const SID = req.cookies.SID;
-            return {
-                status: 200,
-                data: {
-                    msg: "로그아웃 완료",
-                    SID: SID
-                }
+    // static async logout(req) {
+    //     try {
+    //         const SID = req.cookies.SID;
+    //         return {
+    //             status: 200,
+    //             data: {
+    //                 msg: "로그아웃 완료",
+    //                 SID: SID
+    //             }
 
-            }
-        } catch (error) {
-            console.error(error);
-            return {
-                status: 500,
-                data: {
-                    msg: "어스 서버 로그아웃 에러 발생"
-                }
-            }
-        }
-    }
+    //         }
+    //     } catch (error) {
+    //         console.error(error);
+    //         return {
+    //             status: 500,
+    //             data: {
+    //                 msg: "어스 서버 로그아웃 에러 발생"
+    //             }
+    //         }
+    //     }
+    // }
 
     static async updateAccount(req) {
         const updateData = req.body;

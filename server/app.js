@@ -11,19 +11,43 @@ const socielLogins = require('./apis/auth/socielLogins');
 const accountOptions = require('./apis/auth/accountOptions');
 const { redisClient } = require('./apis/dependencie');
 
+const session = require('express-session');
+const RedisStore = require('connect-redis').RedisStore;
 // 패스포트 설정
 const passport = require('passport');
-const passportConfig = require('./passport');
+const passportConfig = require('./apis/passport');
 
 const HTTP_PORT = 5050;
 const HTTPS_PORT = 8443;
 
+// console.log(redisClient)
+
     // 워커 프로세스 설정
     const app = express();
     passportConfig();
-    
 
-    app.use(cookieParser());
+    app.use(
+      session({
+        name: "SID",
+        store: new RedisStore({ client: redisClient }),
+        resave: false,
+        saveUninitialized: false,
+        secret: process.env.COOKIE_SECRET || 'default_secret_key',
+        // secret: process.env.COOKIE_SECRET,
+        cookie: {
+          httpOnly: true,
+          secure: false,
+          maxAge: 1000 * 60 * 60 * 24, // 1일 (필요에 따라 조정)
+        },
+      })
+    )
+
+app.use(passport.initialize()); // 요청 객체에 passport 설정을 심음
+app.use(passport.session()); // req.session 객체에 passport정보를 추가 저장
+// passport.session()이 실행되면, 세션쿠키 정보를 바탕으로 해서 passport/index.js의 deserializeUser()가 실행하게 한다.
+  
+    // app.use(cookieParser());
+    app.use(cookieParser(process.env.COOKIE_SECRET || 'default_secret_key'))
     app.use(express.json());
     app.use(cors({
         origin: 'http://localhost:5173',

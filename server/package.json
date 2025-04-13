@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "bcrypt": "^5.1.1",
+    "connect-redis": "^8.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -24,6 +25,7 @@
     "nanoid": "^3.3.8",
     "nodemailer": "^6.10.0",
     "otplib": "^12.0.1",
+    "passport-local": "^1.0.0",
     "qrcode": "^1.5.4",
     "redis": "^4.7.0",
     "supertest": "^7.0.0",

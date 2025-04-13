@@ -5,11 +5,11 @@ class ControlMongo {
     constructor( dbName, collName) {
         const username = process.env.MONGODB_USERNAME
         const password = process.env.MONGODB_PASSWORD
-        // const mongoUrl = process.env.MONGODB_URL;
         const mongoPort = process.env.MONGODB_PORT;
 
         // const conn = `mongodb://${username}:${password}@${mongoUrl}:${mongoPort}/${dbName}?authSource=admin`;
-        const conn = `mongodb://${username}:${password}@mongodb:${mongoPort}/${dbName}?authSource=admin`;
+        // const conn = `mongodb://${username}:${password}@mongodb:${mongoPort}/${dbName}?authSource=admin`;
+        const conn = `mongodb://${username}:${password}@localhost:${mongoPort}/${dbName}?authSource=admin`;
         console.log(conn);
 
         MongoClient.connect(conn)
