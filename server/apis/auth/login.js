@@ -1,8 +1,7 @@
 const express = require('express');
 
 const login = express.Router();
-const AuthController = require('../../src/util/AuthController'); // 경로 변경
-const { redisClient, mongo } = require("../dependencie");
+const { mongo } = require("../dependencie");
 const { body, validationResult } = require('express-validator');
 const { createResponse } = require('../../src/util/helperFunc'); // createResponse 추가
 
@@ -47,18 +46,18 @@ async function handleTotpAuthentication(user, res) {
          return res.status(500).json(createResponse(500, "인증 코드 전송 중 오류가 발생했습니다.").data);
       }
       
-      // 필요한 사용자 정보만 필터링
-      const filteredUser = {
-         UID: user._id,
-         email: user.email,
-         username: user.username,
-         profilePicURL: user.profilePicURL,
-         totpEnable: true
-      };
+      // // 필요한 사용자 정보만 필터링
+      // const filteredUser = {
+      //    UID: user._id,
+      //    email: user.email,
+      //    username: user.username,
+      //    profilePicURL: user.profilePicURL,
+      //    totpEnable: true
+      // };
       
       // 사용자에게 2단계 인증이 필요함을 알림
       const responseData = createResponse(200, "2단계 인증이 필요합니다. 이메일로 받은 인증 코드를 입력해주세요.", {
-         user: filteredUser,
+         // user: filteredUser,
          requires2FA: true
       });
       return res.status(200).json(responseData.data);

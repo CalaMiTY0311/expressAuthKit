@@ -36,14 +36,6 @@ socielLogins.get('/googleLogin/callback', isNotLoggedIn, (req, res, next) => {
         maxAge: 36000 * 1000,
       });
       
-      // Redis 세션 저장 (기존 방식 유지)
-      const userData = {
-        id: user._id,
-        email: user.email,
-        name: user.username || user.name,
-        picture: user.profilePicURL
-      };
-      
       // 세션은 Passport가 자동으로 처리하므로 추가 Redis 저장은 불필요
       // 요청 완료 후 클라이언트로 리다이렉트
       res.redirect('http://localhost:5173/dashboard');

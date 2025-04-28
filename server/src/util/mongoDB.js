@@ -10,7 +10,6 @@ class ControlMongo {
         // const conn = `mongodb://${username}:${password}@${mongoUrl}:${mongoPort}/${dbName}?authSource=admin`;
         // const conn = `mongodb://${username}:${password}@mongodb:${mongoPort}/${dbName}?authSource=admin`;
         const conn = `mongodb://${username}:${password}@localhost:${mongoPort}/${dbName}?authSource=admin`;
-        console.log(conn);
 
         MongoClient.connect(conn)
             .then(client => {

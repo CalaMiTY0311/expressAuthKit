@@ -323,22 +323,14 @@ describe('사용자 인증 테스트', () => {
 
     test('인증 없이 계정 삭제 시 실패해야 함', async () => {
       const response = await request(app)
-        .delete(`/auth/deleteAccount/${userId}`);
+        .delete(`/auth/deleteAccount`);
 
       expect(response.status).toBe(401);
     });
 
-    test('타인의 계정 삭제 시도 시 실패해야 함', async () => {
-      const response = await request(app)
-        .delete(`/auth/deleteAccount/someOtherId`)
-        .set('Cookie', [`SID=${finalSessionId}`]);
-
-      expect(response.status).toBe(403);
-    });
-
     test('정상적인 계정 삭제가 성공해야 함', async () => {
       const response = await request(app)
-        .delete(`/auth/deleteAccount/${userId}`)
+        .delete(`/auth/deleteAccount`)
         .set('Cookie', [`SID=${finalSessionId}`]);
 
       expect(response.status).toBe(200);

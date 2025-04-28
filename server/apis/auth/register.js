@@ -23,10 +23,9 @@ register.post('/register',
         // 성공 시 레디스에 세션 저장
         if (result.status === 201) {
             const user = result.data.user; // 등록된 사용자 객체
-            console.log("/register : ",user)
             // ✅ 자동 로그인 처리
             req.login(user, (loginError) => {
-                if (loginError) {
+                if (loginError){
                     console.error("자동 로그인 에러:", loginError);
                     return next(loginError);
                 }

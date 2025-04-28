@@ -64,18 +64,15 @@ options.post('/changePassword', isLoggedIn,
 });
 
 // 계정 삭제
-options.delete('/deleteAccount/:id', isLoggedIn, async (req, res) => {
+options.delete('/deleteAccount', isLoggedIn, async (req, res) => {
     try {
-        const { id } = req.params;
+        // 사용자 ID를 세션에서 가져옴
+        const userId = req.user._id;
         
-        // 자신의 계정만 삭제 가능하도록 검증
-        if (id !== req.user._id) {
-            return res.status(403).json({
-                msg: "본인의 계정만 삭제할 수 있습니다."
-            });
-        }
-        
-        const result = await AuthController.deleteAccount(req);
+        const result = await AuthController.deleteAccount({
+            ...req,
+            params: { id: userId } // AuthController 함수의 호환성을 위해 params 오브젝트 추가
+        });
         
         if (result.status === 200) {
             // Passport 로그아웃 처리

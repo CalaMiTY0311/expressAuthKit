@@ -1,12 +1,10 @@
 const express = require('express');
 const logout = express.Router();
-const AuthController = require('../../src/util/AuthController');
 const { createResponse } = require('../../src/util/helperFunc');
-const { redisClient } = require("../dependencie");
 
 const { isLoggedIn } = require("../Middleware")
 
-logout.get('/logout', async (req, res, next) => {
+logout.get('/logout', isLoggedIn, async (req, res, next) => {
     // 로그인되지 않은 상태에서는 바로 성공 응답
     if (!req.isAuthenticated()) {
         const responseData = createResponse(200, "로그아웃 성공");
