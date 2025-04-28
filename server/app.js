@@ -7,7 +7,7 @@ const registerRouter = require('./apis/auth/register');
 const loginRouter = require('./apis/auth/login');
 const logoutRouter = require('./apis/auth/logout');
 const socielLogins = require('./apis/auth/socielLogins');
-const accountOptions = require('./apis/auth/accountOptions');
+const options = require('./apis/auth/options');
 
 const { redisClient } = require('./apis/dependencie');
 
@@ -36,7 +36,7 @@ const HTTP_PORT = 5050;
         store: new RedisStore({ client: redisClient }),
         resave: false,
         saveUninitialized: false,
-        secret: process.env.COOKIE_SECRET || 'default_secret_key',
+        secret: process.env.COOKIE_SECRET,
         cookie: {
           httpOnly: true,
           secure: false,
@@ -53,7 +53,7 @@ const HTTP_PORT = 5050;
     app.use('/auth', loginRouter);
     app.use('/auth', logoutRouter);
     app.use('/auth', socielLogins);
-    app.use('/auth', accountOptions);
+    app.use('/auth', options);
     
     // 에러 핸들링 미들웨어 - 마지막에 배치
     app.use((err, req, res, next) => {

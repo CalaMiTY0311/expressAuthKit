@@ -1,23 +1,10 @@
 const bcrypt = require('bcrypt');
-const { userSchema, userFields } = require("../../src/util/dbSchema");
-const { mongo } = require("../dependencie");
+const { userSchema, userFields } = require("./dbSchema");
+const { mongo } = require("../../apis/dependencie");
 const { nanoid } = require('nanoid');
+const { createResponse } = require('./helperFunc');
 
 class AuthController {
-    // 공통 응답 생성 헬퍼 함수
-    static createResponse(status, msg, data = null) {
-        const response = {
-            status,
-            data: { msg }
-        };
-        
-        if (data) {
-            response.data = { ...response.data, ...data };
-        }
-        
-        return response;
-    }
-    
     // 사용자 ID로 사용자 정보 조회 및 검증 (중복 코드 제거)
     static async getUserById(id, excludePassword = true) {
         try {
@@ -53,7 +40,7 @@ class AuthController {
             // 이미 가입된 유저인지 이메일 매칭 검사
             const existingUser = await mongo.selectDB({ email });
             if (existingUser.length > 0) {
-                return this.createResponse(409, "이미 가입된 이메일 입니다.");
+                return createResponse(409, "이미 가입된 이메일 입니다.");
             }
 
             // 몽고DB nanoid 중복 값 충돌 방지
@@ -87,10 +74,10 @@ class AuthController {
             // 비밀번호는 응답에서 제외
             const { password: _, ...userWithoutPassword } = newUser;
             
-            return this.createResponse(201, "회원가입 성공", { user: userWithoutPassword });
+            return createResponse(201, "회원가입 성공", { user: userWithoutPassword });
         } catch (error) {
             console.error("회원가입 오류:", error);
-            return this.createResponse(500, "어스 서버 회원 가입 에러");
+            return createResponse(500, "어스 서버 회원 가입 에러");
         }
     }
 
@@ -100,7 +87,7 @@ class AuthController {
         
         // 데이터 유효성 검사
         if (!updateData || Object.keys(updateData).length === 0) {
-            return this.createResponse(400, "비어있는 필드 입니다.");
+            return createResponse(400, "비어있는 필드 입니다.");
         }
 
         // 유효하지 않은 필드 체크
@@ -108,7 +95,7 @@ class AuthController {
         const invalidFields = Object.keys(updateData).filter(field => !validFields.includes(field));
         
         if (invalidFields.length > 0) {
-            return this.createResponse(422, `유효하지 않은 필드가 있습니다: ${invalidFields.join(', ')}`);
+            return createResponse(422, `유효하지 않은 필드가 있습니다: ${invalidFields.join(', ')}`);
         }
 
         // 중요 필드 수정 방지
@@ -116,19 +103,19 @@ class AuthController {
         const protectedFieldAttempt = Object.keys(updateData).filter(field => sensitiveFields.includes(field));
         
         if (protectedFieldAttempt.length > 0) {
-            return this.createResponse(403, `보호된 필드는 이 경로에서 수정할 수 없습니다: ${protectedFieldAttempt.join(', ')}`);
+            return createResponse(403, `보호된 필드는 이 경로에서 수정할 수 없습니다: ${protectedFieldAttempt.join(', ')}`);
         }
 
         try {
             // 자신의 계정인지 확인
             if (!this.verifyUserAccess(_id, req.user._id)) {
-                return this.createResponse(403, "자신의 계정만 수정할 수 있습니다.");
+                return createResponse(403, "자신의 계정만 수정할 수 있습니다.");
             }
             
             // 사용자 존재 확인
             const user = await this.getUserById(_id, false);
             if (!user) {
-                return this.createResponse(404, "사용자를 찾을 수 없습니다.");
+                return createResponse(404, "사용자를 찾을 수 없습니다.");
             }
 
             // DB 업데이트
@@ -136,10 +123,10 @@ class AuthController {
             
             // 업데이트된 사용자 정보 반환
             const updatedUser = await this.getUserById(_id);
-            return this.createResponse(200, "계정 업데이트 성공", { user: updatedUser });
+            return createResponse(200, "계정 업데이트 성공", { user: updatedUser });
         } catch (error) {
             console.error("계정 업데이트 오류:", error);
-            return this.createResponse(500, "어스 서버 유저 업데이트 에러 발생");
+            return createResponse(500, "어스 서버 유저 업데이트 에러 발생");
         }
     }
 
@@ -149,7 +136,7 @@ class AuthController {
         
         // 입력 필드 검증
         if (!password) {
-            return this.createResponse(400, "새 비밀번호가 필요합니다.");
+            return createResponse(400, "새 비밀번호가 필요합니다.");
         }
         
         // 허용되는 필드 검증
@@ -158,26 +145,26 @@ class AuthController {
         const invalidFields = fieldCheckPassword.filter(field => !allowedFields.includes(field));
         
         if (invalidFields.length > 0) {
-            return this.createResponse(400, `비밀번호 변경 요청에 유효하지 않은 필드가 포함되어 있습니다: ${invalidFields.join(', ')}`);
+            return createResponse(400, `비밀번호 변경 요청에 유효하지 않은 필드가 포함되어 있습니다: ${invalidFields.join(', ')}`);
         }
 
         try {
             // 자신의 계정인지 확인
             if (!this.verifyUserAccess(_id, req.user._id)) {
-                return this.createResponse(403, "자신의 비밀번호만 변경할 수 있습니다.");
+                return createResponse(403, "자신의 비밀번호만 변경할 수 있습니다.");
             }
             
             // 사용자 정보 조회 (비밀번호 포함)
             const user = await this.getUserById(_id, false);
             if (!user) {
-                return this.createResponse(404, "사용자를 찾을 수 없습니다.");
+                return createResponse(404, "사용자를 찾을 수 없습니다.");
             }
             
             // 현재 비밀번호 확인 (제공된 경우)
             if (currentPassword) {
                 const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
                 if (!isPasswordValid) {
-                    return this.createResponse(401, "현재 비밀번호가 일치하지 않습니다.");
+                    return createResponse(401, "현재 비밀번호가 일치하지 않습니다.");
                 }
             }
             
@@ -185,10 +172,10 @@ class AuthController {
             const hashedPassword = await bcrypt.hash(password, 10);
             await mongo.updateDB({ _id }, { password: hashedPassword });
 
-            return this.createResponse(200, "비밀번호 변경 성공");
+            return createResponse(200, "비밀번호 변경 성공");
         } catch (error) {
             console.error('비밀번호 변경 오류:', error);
-            return this.createResponse(500, "어스 서버 비밀번호 변경 에러 발생");
+            return createResponse(500, "어스 서버 비밀번호 변경 에러 발생");
         }
     }
 
@@ -196,36 +183,36 @@ class AuthController {
         const { id } = req.params;
         
         if (!id) {
-            return this.createResponse(400, "잘못된 요청: ID가 없습니다.");
+            return createResponse(400, "잘못된 요청: ID가 없습니다.");
         }
         
         try {
             // 자신의 계정인지 확인
             if (!this.verifyUserAccess(id, req.user._id)) {
-                return this.createResponse(403, "본인의 계정만 삭제할 수 있습니다.");
+                return createResponse(403, "본인의 계정만 삭제할 수 있습니다.");
             }
 
             // 사용자 정보 조회
             const user = await this.getUserById(id, false);
             if (!user) {
-                return this.createResponse(404, "사용자를 찾을 수 없습니다.");
+                return createResponse(404, "사용자를 찾을 수 없습니다.");
             }
 
             // 관리자 보호 로직: 유일한 관리자는 삭제 방지
             if (user.role === 'admin') {
                 const adminUsers = await mongo.selectDB({ role: 'admin' });
                 if (adminUsers && adminUsers.length <= 1) {
-                    return this.createResponse(403, "유일한 관리자 계정은 삭제할 수 없습니다. 다른 관리자를 먼저 생성해주세요.");
+                    return createResponse(403, "유일한 관리자 계정은 삭제할 수 없습니다. 다른 관리자를 먼저 생성해주세요.");
                 }
             }
 
             // 계정 삭제 실행
             await mongo.deleteDB({ _id: id });
             
-            return this.createResponse(200, "사용자 계정 삭제 완료");
+            return createResponse(200, "사용자 계정 삭제 완료");
         } catch (error) {
             console.error("계정 삭제 오류:", error);
-            return this.createResponse(500, `계정 삭제 에러: ${error.message || error}`);
+            return createResponse(500, `계정 삭제 에러: ${error.message || error}`);
         }
     }
 }

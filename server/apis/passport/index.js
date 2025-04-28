@@ -1,5 +1,6 @@
 const passport = require('passport');
 const local = require('./localStrategy'); // 로컬서버로 로그인할때
+const google = require('./googleStrategy'); // 구글 소셜 로그인
 //const kakao = require('./kakaoStrategy'); // 카카오서버로 로그인할때
 // const User = require('../models/user');
 const { mongo } = require("../dependencie")
@@ -53,5 +54,6 @@ module.exports = () => {
    /* ---------------------------------------------------------------------- */
 
    local();
+   google();
    //kakao();
 };

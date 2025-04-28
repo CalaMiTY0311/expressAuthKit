@@ -1,9 +1,8 @@
 const express = require('express');
 const register = express.Router();
-const AuthController = require('./authController');
-const {
-        isNotLoggedIn 
-} = require('../Middleware');
+const AuthController = require('../../src/util/AuthController');
+const { createResponse } = require('../../src/util/helperFunc');
+const { isNotLoggedIn } = require('../Middleware');
 const { body, validationResult } = require('express-validator');
 
 register.post('/register', 
@@ -16,7 +15,7 @@ register.post('/register',
         // 이메일 패스워드 유효성 검사
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            return res.status(400).json({ msg: errors.errors[0].msg });
+            return res.status(400).json(createResponse(400, errors.errors[0].msg).data);
         }
 
         // 회원가입 로직 실행 
@@ -31,12 +30,8 @@ register.post('/register',
                     console.error("자동 로그인 에러:", loginError);
                     return next(loginError);
                 }
-                return res.status(201).json({
-                    data: {
-                        msg: "회원가입 및 자동 로그인 성공",
-                        user: user
-                    }
-                });
+                const responseData = createResponse(201, "회원가입 및 자동 로그인 성공", { user });
+                return res.status(201).json(responseData.data);
             });
         } else {
             // 실패 시

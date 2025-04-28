@@ -1,11 +1,12 @@
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
+
 const login = express.Router();
-const AuthController = require('./authController');
+const AuthController = require('../../src/util/AuthController'); // 경로 변경
 const { redisClient, mongo } = require("../dependencie");
 const { body, validationResult } = require('express-validator');
+const { createResponse } = require('../../src/util/helperFunc'); // createResponse 추가
 
-const totpEmail = require('./totpEmail');
+const totpUtil = require('../../src/util/totpUtil');
 
 const passport = require('passport');
 const { isNotLoggedIn } = require('../Middleware');
@@ -40,33 +41,30 @@ login.post('/login', isNotLoggedIn, (req, res, next) => {
 async function handleTotpAuthentication(user, res) {
    try {
       // 이메일로 인증 코드 보내기
-      const emailAuthResult = await totpEmail.sendVerifyCode(user.email, user._id);
+      const emailAuthResult = await totpUtil.sendVerificationCode(user.email, user._id);
       
       if (!emailAuthResult.success) {
-         return res.status(500).json({
-            msg: "인증 코드 전송 중 오류가 발생했습니다."
-         });
+         return res.status(500).json(createResponse(500, "인증 코드 전송 중 오류가 발생했습니다.").data);
       }
       
-      // 사용자에게 2단계 인증이 필요함을 알리고 사용자 정보를 반환
-      return res.status(200).json({
-         msg: "2단계 인증이 필요합니다. 이메일로 받은 인증 코드를 입력해주세요.",
-         user: {
-            UID: user._id,
-            email: user.email,
-            username: user.username,
-            bio: user.bio,
-            profilePicURL: user.profilePicURL,
-            totpEnable: user.totpEnable,
-            role: user.role
-         },
+      // 필요한 사용자 정보만 필터링
+      const filteredUser = {
+         UID: user._id,
+         email: user.email,
+         username: user.username,
+         profilePicURL: user.profilePicURL,
+         totpEnable: true
+      };
+      
+      // 사용자에게 2단계 인증이 필요함을 알림
+      const responseData = createResponse(200, "2단계 인증이 필요합니다. 이메일로 받은 인증 코드를 입력해주세요.", {
+         user: filteredUser,
          requires2FA: true
       });
+      return res.status(200).json(responseData.data);
    } catch (error) {
       console.error('TOTP 인증 처리 오류:', error);
-      return res.status(500).json({
-         msg: "서버 오류가 발생했습니다."
-      });
+      return res.status(500).json(createResponse(500, "서버 오류가 발생했습니다.").data);
    }
 }
 
@@ -81,99 +79,95 @@ function completeLogin(req, res, next, user) {
       // 클라이언트에 UID 쿠키 설정
       res.cookie('UID', user._id, {
          httpOnly: true,
-         secure: 'true',
+         secure: true,
          maxAge: 24 * 60 * 60 * 1000, // 24시간
          sameSite: 'none'
       });
       
+      // 필요한 사용자 정보만 필터링
+      const filteredUser = {
+         UID: user._id,
+         email: user.email,
+         username: user.username,
+         profilePicURL: user.profilePicURL,
+         totpEnable: !!user.totpEnable,
+         role: user.role
+      };
+      
       // 로그인 성공 응답
-      return res.status(200).json({ 
-         "msg": "로그인 성공",
-         "user": {
-            UID: user._id,
-            email: user.email,
-            username: user.username,
-            bio: user.bio,
-            profilePicURL: user.profilePicURL,
-            totpEnable: user.totpEnable,
-            role: user.role
-         }        
+      const responseData = createResponse(200, "로그인 성공", {
+         user: filteredUser
       });
+      return res.status(200).json(responseData.data);
    });
 }
 
 // 2단계 인증 코드 검증
 login.post('/verifyEmail', [
-   body('code').isLength({ min: 6, max: 6 }).isNumeric().withMessage('유효한 6자리 인증 코드를 입력하세요'),
-   body('UID').notEmpty().withMessage('사용자 ID가 필요합니다.')
+   body('code').isLength({ min: 6, max: 6 }).isNumeric().withMessage('유효한 6자리 인증 코드를 입력하세요')
 ], async (req, res, next) => {
    try {
       // 입력 유효성 검사
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-         return res.status(400).json({
-            msg: errors.array()[0].msg
-         });
+         return res.status(400).json(createResponse(400, errors.array()[0].msg).data);
       }
 
-      const { code, UID } = req.body;
+      const { code } = req.body;
       
-      // 인증 코드 검증
-      const verificationResult = await totpEmail.checkVerifyCode(UID, code);
+      // 인증 코드로 사용자 ID 검증
+      const verificationResult = await totpUtil.verifyTotpCode(code);
       
       if (!verificationResult.success) {
-         return res.status(400).json({
-            msg: verificationResult.message
-         });
+         return res.status(400).json(createResponse(400, verificationResult.message).data);
       }
 
-      // 사용자 정보 조회
+      // 사용자 ID 가져오기
+      const UID = verificationResult.userId;
       const users = await mongo.selectDB({ _id: UID });
       if (!users || users.length === 0) {
-         return res.status(404).json({
-            msg: "사용자를 찾을 수 없습니다."
-         });
+         return res.status(404).json(createResponse(404, "사용자를 찾을 수 없습니다.").data);
       }
       
       const user = users[0];
       
-      // 인증 코드 삭제
-      await redisClient.del(`verifyEmail:${UID}`);
+      // 인증 코드 삭제 (검증 후 즉시 처리)
+      await totpUtil.clearTotpCode(UID, code);
       
       // 자동 로그인 처리
       req.login(user, loginError => {
          if (loginError) {
             console.error('2FA 후 로그인 오류:', loginError);
-            return res.status(500).json({ msg: '로그인 처리 중 오류가 발생했습니다.' });
+            return res.status(500).json(createResponse(500, '로그인 처리 중 오류가 발생했습니다.').data);
          }
 
          // 클라이언트에 UID 쿠키 설정
          res.cookie('UID', user._id, {
             httpOnly: true,
-            secure: 'true',
+            secure: true,
             maxAge: 24 * 60 * 60 * 1000, // 24시간
             sameSite: 'none'
          });
 
          // 성공 응답
-         return res.status(200).json({
-            msg: "2단계 인증 성공, 로그인 완료",
-            user: {
-               UID: user._id,
-               email: user.email,
-               username: user.username,
-               bio: user.bio,
-               profilePicURL: user.profilePicURL,
-               totpEnable: user.totpEnable,
-               role: user.role
-            }
+         // 필요한 사용자 정보만 필터링
+         const filteredUser = {
+            UID: user._id,
+            email: user.email,
+            username: user.username,
+            profilePicURL: user.profilePicURL,
+            totpEnable: true,
+            role: user.role
+         };
+         
+         const responseData = createResponse(200, "2단계 인증 성공, 로그인 완료", {
+            user: filteredUser
          });
+         return res.status(200).json(responseData.data);
       });
    } catch (error) {
       console.error('2FA 인증 검증 오류:', error);
-      return res.status(500).json({
-         msg: '서버 오류가 발생했습니다.'
-      });
+      return res.status(500).json(createResponse(500, '서버 오류가 발생했습니다.').data);
    }
 });
 

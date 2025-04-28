@@ -78,6 +78,8 @@ async function sendVerifyCode(email, UID) {
 
         // Redis에 인증 코드 저장 (10분 유효)
         await redisClient.setEx(`verifyEmail:${UID}`, 600, verifyCode);
+        // 인증 코드로 UID를 찾을 수 있도록 역방향 맵핑도 저장
+        await redisClient.setEx(`verifyCode:${verifyCode}`, 600, UID);
         // 사용자 이메일로 인증 코드 전송
         await sendEmail(email, verifyCode);
 
@@ -96,23 +98,53 @@ async function sendVerifyCode(email, UID) {
 }
 
 // 인증 코드 검증 함수
-async function checkVerifyCode(UID, code) {
+async function checkVerifyCode(uidOrCode, code = null) {
     try {
-        // Redis에서 저장된 코드 조회
-        const storedCode = await redisClient.get(`verifyEmail:${UID}`);
-        console.log(storedCode)
+        // UID와 코드를 모두 제공한 경우 (기존 방식)
+        if (code) {
+            // Redis에서 저장된 코드 조회
+            const storedCode = await redisClient.get(`verifyEmail:${uidOrCode}`);
+            console.log(storedCode)
 
-        // 코드가 없거나 일치하지 않으면 실패
-        if (!storedCode || storedCode !== code) {
+            // 코드가 없거나 일치하지 않으면 실패
+            if (!storedCode || storedCode !== code) {
+                return {
+                    success: false,
+                    message: '인증 코드가 올바르지 않습니다.'
+                };
+            }
             return {
-                success: false,
-                message: '인증 코드가 올바르지 않습니다.'
+                success: true,
+                message: '인증이 완료되었습니다.',
+                UID: uidOrCode
+            };
+        } 
+        // 코드만 제공한 경우 (새로운 방식)
+        else {
+            // 코드로 UID 조회
+            const UID = await redisClient.get(`verifyCode:${uidOrCode}`);
+            if (!UID) {
+                return {
+                    success: false,
+                    message: '인증 코드가 올바르지 않거나 만료되었습니다.'
+                };
+            }
+            
+            // 저장된 인증 코드 확인
+            const storedCode = await redisClient.get(`verifyEmail:${UID}`);
+            if (!storedCode || storedCode !== uidOrCode) {
+                return {
+                    success: false,
+                    message: '인증 코드가 올바르지 않습니다.'
+                };
+            }
+            
+            return {
+                success: true,
+                message: '인증이 완료되었습니다.',
+                UID
             };
         }
-        return {
-            success: true,
-            message: '인증이 완료되었습니다.'
-        };
     } catch (error) {
         console.error('인증 코드 검증 오류:', error);
         return {

@@ -1,6 +1,7 @@
 const express = require('express');
 const accountOptions = express.Router();
-const AuthController = require('./authController'); 
+const AuthController = require('../../src/util/AuthController');
+const { createResponse } = require('../../src/util/helperFunc');
 const { redisClient } = require("../dependencie");
 const { body, validationResult } = require('express-validator');
 
@@ -9,22 +10,14 @@ const { isLoggedIn } = require('../Middleware');
 // 계정 정보 업데이트 - Passport 인증 사용
 accountOptions.put('/updateAccount', isLoggedIn, async(req, res) => {
     try {
-        const updateData = req.body;
         
-        // 자신의 계정 정보만 수정할 수 있도록 합니다.
-        // req.user는 passport가 세션에서 복원한 사용자 정보입니다.
-        if (req.body._id && req.body._id !== req.user._id) {
-            return res.status(403).json({
-                msg: "다른 사용자의 정보를 수정할 수 없습니다."
-            });
-        }
-        
+        // console.log("req : ", req.user._id) ex)req : id
         // 사용자 ID를 세션에서 가져옴 (passport req.user 사용)
         req.cookies = {
             ...req.cookies,
             UID: req.user._id // Passport가 세션에서 복원한 사용자 ID 사용
         };
-        
+        // console.log(req.cookies) ex) { UID : "_id" }
         const result = await AuthController.updateAccount(req);
         res.status(result.status).json(result.data);
     } catch (error) {

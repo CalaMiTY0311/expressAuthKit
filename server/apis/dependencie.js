@@ -3,15 +3,11 @@ const ControlMongo = require("../src/util/mongoDB")
 const { createClient } = require('redis');
 
 const REDIS_URL = process.env.REDIS_URL;  // 기본값: localhost
-console.log("asd",process.env.REDIS_PORT)
 const REDIS_PORT = process.env.REDIS_PORT || 6379;  // 기본값: 6379
 
 // ✅ MongoDB 연결 설
 const mongo = new ControlMongo('Server', 'Users');
 // const testmongo = new ControlMongo('Server', 'testUsers')
-
-console.log(REDIS_URL)
-console.log(REDIS_PORT)
 
 const redisClient = createClient({
     // url: `redis://${REDIS_URL}:${REDIS_PORT}`  // 서비스 이름과 포트 사용
