@@ -1,320 +1,233 @@
 const bcrypt = require('bcrypt');
-const ControlMongo = require('../../src/util/mongoDB');
-// const redisClient = require('../config/redis'); // Redis 연결 파일
 const { userSchema, userFields } = require("../../src/util/dbSchema");
-const { mongo } = require("../dependencie")
+const { mongo } = require("../dependencie");
 const { nanoid } = require('nanoid');
 
 class AuthController {
-
-    constructor(mongo) {
-        this.mongo = mongo;
+    // 공통 응답 생성 헬퍼 함수
+    static createResponse(status, msg, data = null) {
+        const response = {
+            status,
+            data: { msg }
+        };
+        
+        if (data) {
+            response.data = { ...response.data, ...data };
+        }
+        
+        return response;
+    }
+    
+    // 사용자 ID로 사용자 정보 조회 및 검증 (중복 코드 제거)
+    static async getUserById(id, excludePassword = true) {
+        try {
+            const users = await mongo.selectDB({ _id: id });
+            
+            if (!users || users.length === 0) {
+                return null;
+            }
+            
+            if (excludePassword) {
+                const { password, ...userWithoutPassword } = users[0];
+                return userWithoutPassword;
+            }
+            
+            return users[0];
+        } catch (error) {
+            console.error("사용자 조회 오류:", error);
+            throw error;
+        }
+    }
+    
+    // 현재 사용자 권한 확인 (자신의 데이터만 수정/삭제 가능)
+    static verifyUserAccess(reqUserId, targetUserId) {
+        if (reqUserId !== targetUserId) {
+            return false;
+        }
+        return true;
     }
 
     static async register(req) {
-        const { email, password } = req.body
+        const { email, password } = req.body;
         try {
-
-            //이미 가입된 유저인지 이메일 매칭 검사
+            // 이미 가입된 유저인지 이메일 매칭 검사
             const existingUser = await mongo.selectDB({ email });
             if (existingUser.length > 0) {
-                return {
-                    status: 409,
-                    data: {
-                        msg: "이미 가입된 이메일 입니다."
-                    }
-                }
+                return this.createResponse(409, "이미 가입된 이메일 입니다.");
             }
 
             // 몽고DB nanoid 중복 값 충돌 방지
             let _id;
-            let flag = false;
-            while (!flag) {
+            let idExists = true;
+            
+            while (idExists) {
                 _id = nanoid();
                 const existingId = await mongo.selectDB({ _id });
-                if (!existingId.length > 0) {
-                    flag = true;
-                }
+                idExists = existingId.length > 0;
             }
-            // src/util/dbSchema를 사용해 db 유저 필드 생성
+            
+            // 스키마에 따른 사용자 객체 생성
             const newUser = {};
             for (const field of userFields) {
                 if (req.body[field] !== undefined) {
                     newUser[field] = req.body[field];
                 } else if (userSchema[field]?.default !== undefined) {
                     newUser[field] = typeof userSchema[field].default === "function"
-                        ? userSchema[field].default()  // Date 등의 동적 기본값
+                        ? userSchema[field].default()
                         : userSchema[field].default;
                 }
             }
+            
             newUser._id = _id;
-            const hashedPassword = await bcrypt.hash(password, 10);
-            newUser.password = hashedPassword;
+            newUser.password = await bcrypt.hash(password, 10);
 
-            // 스키마 설정 후 mongoDB에 저장
+            // DB에 저장
             await mongo.insertDB(newUser);
-
-            return {
-                status: 201,
-                data: {
-                    msg: "회원가입 성공",
-                    user: newUser
-                }
-            }
-        } catch (registerError) {
-            console.error(registerError);
-            return {
-                status: 500,
-                data: {
-                    msg: "어스 서버 회원 가입 에러"
-                }
-            };
-        }
-    }
-
-    static async login(req) {
-        const { email, password } = req.body;
-        try {
-            const user = await mongo.selectDB({ email });
-            // 사용자가 없는 경우 조기 반환
-            if (user.length === 0) {
-                return {
-                    status: 401,
-                    data: { msg: "존재하지 않는 유저입니다." }
-                };
-            }
-            const isPasswordValid = await bcrypt.compare(password, user[0].password);
-            if (!isPasswordValid) {
-                return {
-                    status: 401,
-                    data: { msg: "존재하지 않는 유저입니다." }
-                };
-            }
-
-            if (user[0].provider !== "local") {
-                return {
-                    status: 403,
-                    data: {
-                        msg: "이미 가입된 소셜 로그인 계정입니다."
-                    }
-                }
-            }
-
-            return {
-                status: 200,
-                data: {
-                    msg: "로그인 성공",
-                    user: {
-                        _id: user[0]._id,
-                        email: user[0].email,
-                        username: user[0].username,
-                        bio: user[0].bio,
-                        profilePicURL: user[0].profilePicURL,
-                        totpEnable: user[0].totpEnable
-                    }
-                }
-            }
+            
+            // 비밀번호는 응답에서 제외
+            const { password: _, ...userWithoutPassword } = newUser;
+            
+            return this.createResponse(201, "회원가입 성공", { user: userWithoutPassword });
         } catch (error) {
-            console.error(error);
-            return {
-                status: 500,
-                data: {
-                    msg: "어스 서버 로그인 에러 발생"
-                }
-            };
+            console.error("회원가입 오류:", error);
+            return this.createResponse(500, "어스 서버 회원 가입 에러");
         }
     }
-
-    // static async logout(req) {
-    //     try {
-    //         const SID = req.cookies.SID;
-    //         return {
-    //             status: 200,
-    //             data: {
-    //                 msg: "로그아웃 완료",
-    //                 SID: SID
-    //             }
-
-    //         }
-    //     } catch (error) {
-    //         console.error(error);
-    //         return {
-    //             status: 500,
-    //             data: {
-    //                 msg: "어스 서버 로그아웃 에러 발생"
-    //             }
-    //         }
-    //     }
-    // }
 
     static async updateAccount(req) {
         const updateData = req.body;
-
-        // 데이터가 비어있는지 체크
+        const _id = req.cookies.UID;
+        
+        // 데이터 유효성 검사
         if (!updateData || Object.keys(updateData).length === 0) {
-            return {
-                status: 400,
-                data: {
-                    msg: "비어있는 필드 입니다."
-                }
-            };
+            return this.createResponse(400, "비어있는 필드 입니다.");
         }
 
         // 유효하지 않은 필드 체크
         const validFields = Object.keys(userSchema);
-
-        // 유효하지 않은 필드 체크
         const invalidFields = Object.keys(updateData).filter(field => !validFields.includes(field));
+        
         if (invalidFields.length > 0) {
-            return {
-                status: 422,
-                data: {
-                    msg: `유효하지 않은 필드가 있습니다: ${invalidFields.join(', ')}`
-                }
-            };
+            return this.createResponse(422, `유효하지 않은 필드가 있습니다: ${invalidFields.join(', ')}`);
         }
 
         // 중요 필드 수정 방지
-        const sensitiveFields = ['_id', 'email', 'password', 'createdAt', 'provider'];
+        const sensitiveFields = ['_id', 'email', 'password', 'createdAt', 'provider', 'role'];
         const protectedFieldAttempt = Object.keys(updateData).filter(field => sensitiveFields.includes(field));
+        
         if (protectedFieldAttempt.length > 0) {
-            return {
-                status: 403,
-                data: {
-                    msg: `보호된 필드는 이 경로에서 수정할 수 없습니다: ${protectedFieldAttempt.join(', ')}`
-                }
-            };
+            return this.createResponse(403, `보호된 필드는 이 경로에서 수정할 수 없습니다: ${protectedFieldAttempt.join(', ')}`);
         }
 
         try {
-            const _id = req.cookies.UID;
-
-            // 사용자 존재 여부 체크
-            const user = await mongo.selectDB({ _id });
+            // 자신의 계정인지 확인
+            if (!this.verifyUserAccess(_id, req.user._id)) {
+                return this.createResponse(403, "자신의 계정만 수정할 수 있습니다.");
+            }
+            
+            // 사용자 존재 확인
+            const user = await this.getUserById(_id, false);
             if (!user) {
-                return {
-                    status: 404,
-                    data: {
-                        msg: "사용자를 찾을 수 없습니다."
-                    }
-                };
+                return this.createResponse(404, "사용자를 찾을 수 없습니다.");
             }
 
             // DB 업데이트
-            const updatedUser = await mongo.updateDB({ _id }, updateData);
-            return {
-                status: 200,
-                data: {
-                    msg: "계정 업데이트 성공",
-                    user: updatedUser
-                }
-            };
+            await mongo.updateDB({ _id }, updateData);
+            
+            // 업데이트된 사용자 정보 반환
+            const updatedUser = await this.getUserById(_id);
+            return this.createResponse(200, "계정 업데이트 성공", { user: updatedUser });
         } catch (error) {
-            console.error("계정 업데이트 중 오류 발생:", error);
-            return {
-                status: 500,
-                data: {
-                    msg: "어스 서버 유저 업데이트 에러 발생"
-                }
-            };
+            console.error("계정 업데이트 오류:", error);
+            return this.createResponse(500, "어스 서버 유저 업데이트 에러 발생");
         }
     }
 
-    // 아래 추가로 구현 할만한 리스트
-    // 1. 복잡성 구현(패스워드 대소문자 또는 특수문자포함 체크)
-    // 2. 현재 비밀번호와 새 비밀번호를 받아 패스워드를 변경하는 로직
-    // 2-1. 새 비밀번호가 기존에 설정되었던 패스워드와 일치하는지 확인하는 로직
     static async changePassword(req) {
-        const { password } = req.body;
-        // if (!password) {
-        //     return {
-        //         status: 400,
-        //         data: {
-        //             msg: "비밀번호가 필요합니다."
-        //         }
-        //     };
-        // }
-        const fieldCheckPassword = Object.keys(req.body);
-        if (fieldCheckPassword.length !== 1 || fieldCheckPassword[0] !== 'password') {
-            return {
-                status: 400,
-                data: {
-                    msg: "비밀번호 변경 요청에는 'password'만을 포함해야합니다."
-                }
-            };
+        const { password, currentPassword } = req.body;
+        const _id = req.cookies.UID;
+        
+        // 입력 필드 검증
+        if (!password) {
+            return this.createResponse(400, "새 비밀번호가 필요합니다.");
         }
+        
+        // 허용되는 필드 검증
+        const allowedFields = ['password', 'currentPassword'];
+        const fieldCheckPassword = Object.keys(req.body);
+        const invalidFields = fieldCheckPassword.filter(field => !allowedFields.includes(field));
+        
+        if (invalidFields.length > 0) {
+            return this.createResponse(400, `비밀번호 변경 요청에 유효하지 않은 필드가 포함되어 있습니다: ${invalidFields.join(', ')}`);
+        }
+
         try {
-            const _id = req.cookies.UID;
-            const user = await mongo.selectDB({ _id });
-            if (!user) {
-                return {
-                    status: 404,
-                    data: {
-                        msg: "사용자를 찾을 수 없습니다."
-                    }
-                };
+            // 자신의 계정인지 확인
+            if (!this.verifyUserAccess(_id, req.user._id)) {
+                return this.createResponse(403, "자신의 비밀번호만 변경할 수 있습니다.");
             }
+            
+            // 사용자 정보 조회 (비밀번호 포함)
+            const user = await this.getUserById(_id, false);
+            if (!user) {
+                return this.createResponse(404, "사용자를 찾을 수 없습니다.");
+            }
+            
+            // 현재 비밀번호 확인 (제공된 경우)
+            if (currentPassword) {
+                const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+                if (!isPasswordValid) {
+                    return this.createResponse(401, "현재 비밀번호가 일치하지 않습니다.");
+                }
+            }
+            
+            // 새 비밀번호 해싱 및 저장
             const hashedPassword = await bcrypt.hash(password, 10);
             await mongo.updateDB({ _id }, { password: hashedPassword });
 
-            return {
-                status: 200,
-                data: {
-                    msg: "비밀번호 변경 성공"
-                }
-            };
-
+            return this.createResponse(200, "비밀번호 변경 성공");
         } catch (error) {
-            console.log(error)
-            return {
-                status: 500,
-                data: {
-                    msg: `어스 서버 비밀번호 변경 에러 발생"`
-                }
-            };
+            console.error('비밀번호 변경 오류:', error);
+            return this.createResponse(500, "어스 서버 비밀번호 변경 에러 발생");
         }
     }
 
     static async deleteAccount(req) {
-        const { id } = req.params; // URL에서 ID 가져오기
+        const { id } = req.params;
+        
         if (!id) {
-            return {
-                status: 400,
-                data: {
-                    msg: "잘못된 요청: ID가 없습니다."
-                }
-            };
+            return this.createResponse(400, "잘못된 요청: ID가 없습니다.");
         }
+        
         try {
-            const user = await mongo.selectDB({ _id: id });
-            console.log("user : ", user)
-            console.log(id)
-            if (!user || (Array.isArray(user) && user.length === 0)) {
-                return {
-                    status: 404,
-                    data: {
-                        msg: "사용자를 찾을 수 없습니다."
-                    }
-                };
+            // 자신의 계정인지 확인
+            if (!this.verifyUserAccess(id, req.user._id)) {
+                return this.createResponse(403, "본인의 계정만 삭제할 수 있습니다.");
             }
+
+            // 사용자 정보 조회
+            const user = await this.getUserById(id, false);
+            if (!user) {
+                return this.createResponse(404, "사용자를 찾을 수 없습니다.");
+            }
+
+            // 관리자 보호 로직: 유일한 관리자는 삭제 방지
+            if (user.role === 'admin') {
+                const adminUsers = await mongo.selectDB({ role: 'admin' });
+                if (adminUsers && adminUsers.length <= 1) {
+                    return this.createResponse(403, "유일한 관리자 계정은 삭제할 수 없습니다. 다른 관리자를 먼저 생성해주세요.");
+                }
+            }
+
+            // 계정 삭제 실행
             await mongo.deleteDB({ _id: id });
-            return {
-                status: 200,
-                data: {
-                    msg: "사용자 회원삭제 완료"
-                }
-            }
+            
+            return this.createResponse(200, "사용자 계정 삭제 완료");
         } catch (error) {
-            return {
-                status: 500,
-                data: {
-                    msg: `계정 삭제 에러 : ${error}`
-                }
-            }
+            console.error("계정 삭제 오류:", error);
+            return this.createResponse(500, `계정 삭제 에러: ${error.message || error}`);
         }
     }
 }
 
-// module.exports = new AuthController(mongo, redisClient);
 module.exports = AuthController;
-
