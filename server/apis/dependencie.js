@@ -1,31 +1,59 @@
 require('dotenv').config(); // .env 파일 로드
-const ControlMongo = require("../src/util/mongoDB")
+const ControlMongo = require("../src/util/mongoDB");
 const { createClient } = require('redis');
 
-const REDIS_URL = process.env.REDIS_URL;  // 기본값: localhost
-const REDIS_PORT = process.env.REDIS_PORT || 6379;  // 기본값: 6379
-
-// ✅ MongoDB 연결 설
-const mongo = new ControlMongo('Server', 'Users');
-const testmongo = new ControlMongo('Server', 'testauth')
-// const testmongo = new ControlMongo('Server', 'testUsers')
+// =========================================================
+// Redis 연결 설정
+// =========================================================
+const REDIS_URL = process.env.REDIS_URL || 'localhost';
+const REDIS_PORT = process.env.REDIS_PORT || 6379;
 
 const redisClient = createClient({
-    // url: `redis://${REDIS_URL}:${REDIS_PORT}`  // 서비스 이름과 포트 사용
     url: `redis://localhost:${REDIS_PORT}`
 });
 
+// Redis 연결 초기화
 (async () => {
     try {
-      await redisClient.connect();
-      console.log("redisClient 연결 성공")
+        await redisClient.connect();
+        console.log(`✅ Redis 연결 성공 - ${REDIS_URL}:${REDIS_PORT}`);
     } catch (err) {
-      console.log(`❌ Redis connection error: ${err}`);
+        console.error(`❌ Redis 연결 오류: ${err}`);
     }
-  })();
+})();
 
+// =========================================================
+// MongoDB 연결 설정
+// =========================================================
+const DB_NAME = process.env.DB_NAME || 'Server';
+const COLLECTION_NAME = process.env.COLLECTION_NAME || 'Users';
+const TEST_COLLECTION_NAME = process.env.TEST_COLLECTION_NAME || 'testauth';
+
+// 프로덕션 DB
+const mongo = new ControlMongo(DB_NAME, COLLECTION_NAME);
+
+// 테스트 DB
+const testmongo = new ControlMongo(DB_NAME, TEST_COLLECTION_NAME);
+
+// 의존성 내보내기
 module.exports = {
+    // MongoDB 인스턴스
     mongo,
-    // testmongo,
-    redisClient
+    testmongo,
+    
+    // Redis 클라이언트
+    redisClient,
+    
+    // 연결 설정
+    connections: {
+        redis: {
+            url: REDIS_URL,
+            port: REDIS_PORT
+        },
+        mongodb: {
+            dbName: DB_NAME,
+            collectionName: COLLECTION_NAME,
+            testCollectionName: TEST_COLLECTION_NAME
+        }
+    }
 };

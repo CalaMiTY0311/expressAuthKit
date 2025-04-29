@@ -2,12 +2,14 @@ const request = require('supertest');
 const app = require('./app'); // Express 앱
 const { mongo, redisClient } = require('./apis/dependencie');
 
+// 테스트용 계정 설정
 describe('사용자 인증 테스트', () => {
   // 테스트 데이터 정의
   const test_user = {
     email: 'test@example.com',
     username: 'TestUser',
-    password: 'Password123!'
+    password: 'Password123!',
+    provider: 'local'  // 로컬 계정임을 명시적으로 설정
   };
 
   let userId = null;
@@ -246,8 +248,8 @@ describe('사용자 인증 테스트', () => {
       expect(response.status).toBe(200);
       expect(response.body.totpEnable).toBe(true);
       
-      // 사용자 정보 확인
-      const users = await mongo.selectDB({ _id: userId });
+      // MongoDB에서 사용자 정보 확인 (testmongo 사용)
+      const users = await mongo.selectDB({ email: test_user.email });
       expect(users.length).toBe(1);
       expect(users[0].totpEnable).toBe(true);
     });
@@ -272,11 +274,11 @@ describe('사용자 인증 테스트', () => {
 
   // 7. 로그아웃 테스트
   describe('로그아웃 테스트', () => {
-    test('인증 없이 로그아웃 시 실패하지 않음 (세션이 없어도 성공해야 함)', async () => {
+    test('인증 없이 로그아웃 시 실패해야 함', async () => {
       const response = await request(app)
         .get('/auth/logout');
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(401);
     });
 
     test('정상적인 로그아웃이 성공해야 함', async () => {

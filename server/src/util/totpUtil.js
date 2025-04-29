@@ -1,48 +1,80 @@
-// totpUtil.js
+/**
+ * TOTP(Time-based One-Time Password) 인증 유틸리티
+ * 
+ * 이메일을 통한 2단계 인증 기능을 제공합니다.
+ * - 인증 코드 생성 및 이메일 전송
+ * - Redis를 사용한 인증 코드 저장 및 검증
+ */
+
 const { redisClient } = require('../../apis/dependencie');
 const nodemailer = require('nodemailer');
 
-// 이메일 트랜스포터 설정
-let transporter;
-let testAccount;
+// 이메일 트랜스포터 (전역 변수)
+let transporter = null;
+let testAccount = null;
 
+/**
+ * 이메일 트랜스포터 초기화
+ * 
+ * 환경변수:
+ * - EMAIL_USER: 이메일 발신 계정
+ * - EMAIL_PASSWORD: 이메일 발신 계정 비밀번호
+ * 
+ * @returns {Promise<boolean>} 초기화 성공 여부
+ */
 const initializeTransporter = async () => {
+    console.log('📧 이메일 트랜스포터 초기화 중...');
+    
+    // 실제 Gmail 계정 사용
     if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
-        transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASSWORD
-            }
-        });
-        console.log('Gmail 트랜스포터로 초기화됨');
-        return true;
-    } else {
         try {
-            testAccount = await nodemailer.createTestAccount();
             transporter = nodemailer.createTransport({
-                host: 'smtp.ethereal.email',
-                port: 587,
-                secure: false,
+                service: 'gmail',
                 auth: {
-                    user: testAccount.user,
-                    pass: testAccount.pass
+                    user: process.env.EMAIL_USER,
+                    pass: process.env.EMAIL_PASSWORD
                 }
             });
-            console.log('Ethereal 테스트 트랜스포터로 초기화됨');
+            
+            // 연결 테스트
+            await transporter.verify();
+            console.log('✅ Gmail 트랜스포터 초기화 성공');
+            console.log(`   발신 계정: ${process.env.EMAIL_USER}`);
             return true;
-        } catch (err) {
-            console.error('이메일 트랜스포터 초기화 오류:', err);
-            return false;
+        } catch (error) {
+            console.error('❌ Gmail 트랜스포터 초기화 실패:', error);
+            // Gmail 실패 시 테스트 계정으로 대체
         }
+    }
+    
+    // 테스트 계정 사용 (개발 용도)
+    try {
+        testAccount = await nodemailer.createTestAccount();
+        transporter = nodemailer.createTransport({
+            host: 'smtp.ethereal.email',
+            port: 587,
+            secure: false,
+            auth: {
+                user: testAccount.user,
+                pass: testAccount.pass
+            }
+        });
+        
+        console.log('✅ Ethereal 테스트 트랜스포터 초기화 성공');
+        console.log(`   테스트 계정: ${testAccount.user}`);
+        console.log('   이메일은 실제로 전송되지 않으며, 콘솔에 미리보기 URL이 표시됩니다.');
+        return true;
+    } catch (err) {
+        console.error('❌ 모든 이메일 트랜스포터 초기화 실패:', err);
+        return false;
     }
 };
 
-// 초기화 즉시 실행
-initializeTransporter();
+// 서버 시작 시 트랜스포터 초기화
+initializeTransporter().catch(console.error);
 
 /**
- * 인증 코드 생성 함수
+ * 6자리 인증 코드 생성
  * @returns {string} 6자리 인증 코드
  */
 const generateTotpCode = () => {
@@ -53,7 +85,7 @@ const generateTotpCode = () => {
  * 이메일로 인증 코드 전송
  * @param {string} email - 수신자 이메일 주소
  * @param {string} code - 6자리 인증 코드
- * @returns {Promise} 이메일 전송 결과
+ * @returns {Promise<Object>} 이메일 전송 결과
  */
 const sendTotpEmail = async (email, code) => {
     // 트랜스포터가 초기화되지 않았으면 초기화
@@ -64,8 +96,12 @@ const sendTotpEmail = async (email, code) => {
         }
     }
 
+    // 발신자 이메일 설정
+    const sender = process.env.EMAIL_USER || (testAccount ? testAccount.user : 'noreply@example.com');
+    
+    // 이메일 옵션 설정
     const mailOptions = {
-        from: process.env.EMAIL_USER || (testAccount ? testAccount.user : 'OracleMemory2@gmail.com'),
+        from: `"인증 시스템" <${sender}>`,
         to: email,
         subject: '로그인 인증 코드',
         html: `
@@ -82,14 +118,24 @@ const sendTotpEmail = async (email, code) => {
     };
 
     try {
+        // 이메일 전송
         const result = await transporter.sendMail(mailOptions);
+        
+        // 테스트 계정인 경우 미리보기 URL 로그
+        if (testAccount) {
+            const previewURL = nodemailer.getTestMessageUrl(result);
+            console.log(`📧 테스트 이메일 전송됨 - 미리보기: ${previewURL}`);
+        } else {
+            console.log(`📧 이메일 전송됨: ${email}`);
+        }
+        
         return {
             success: true,
             messageId: result.messageId,
-            previewUrl: nodemailer.getTestMessageUrl(result)
+            previewUrl: testAccount ? nodemailer.getTestMessageUrl(result) : null
         };
     } catch (error) {
-        console.error('이메일 전송 오류:', error);
+        console.error('❌ 이메일 전송 오류:', error);
         throw error;
     }
 };
@@ -105,6 +151,7 @@ const sendVerificationCode = async (email, userId, expireSeconds = 600) => {
     try {
         // 인증 코드 생성
         const totpCode = generateTotpCode();
+        console.log(`🔑 사용자 ${userId}의 인증 코드 생성: ${totpCode}`);
 
         // Redis에 인증 코드 저장 (기본 10분 유효)
         await redisClient.setEx(`verifyEmail:${userId}`, expireSeconds, totpCode);
@@ -119,7 +166,7 @@ const sendVerificationCode = async (email, userId, expireSeconds = 600) => {
             message: '인증 코드가 이메일로 전송되었습니다.'
         };
     } catch (error) {
-        console.error('인증 코드 생성 및 전송 오류:', error);
+        console.error('❌ 인증 코드 생성 및 전송 오류:', error);
         return {
             success: false,
             message: '인증 코드 전송 중 오류가 발생했습니다.',
@@ -180,7 +227,7 @@ const verifyTotpCode = async (codeOrUserId, code = null) => {
             };
         }
     } catch (error) {
-        console.error('인증 코드 검증 오류:', error);
+        console.error('❌ 인증 코드 검증 오류:', error);
         return {
             success: false,
             message: '인증 코드 검증 중 오류가 발생했습니다.',
@@ -199,9 +246,10 @@ const clearTotpCode = async (userId, code) => {
     try {
         await redisClient.del(`verifyEmail:${userId}`);
         await redisClient.del(`verifyCode:${code}`);
+        console.log(`🧹 사용자 ${userId}의 인증 코드 삭제 완료`);
         return true;
     } catch (error) {
-        console.error('인증 코드 삭제 오류:', error);
+        console.error('❌ 인증 코드 삭제 오류:', error);
         return false;
     }
 };
